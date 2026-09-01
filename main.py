@@ -136,86 +136,11 @@ class VoteView(discord.ui.View):
         else:
             await interaction.response.send_message("❌ Bạn đã bỏ phiếu rồi!", ephemeral=True)
 
-# ===== LỆNH START =====
-@tree.command(name="start", description="🎮 Mở sảnh game và bắt đầu vote mini game")
-async def slash_start(interaction: discord.Interaction):
-    if not interaction.guild:
-        await interaction.response.send_message("❌ Lệnh này chỉ dùng trong server!", ephemeral=True)
-        return
-
-    # Đếm ngược 3 giây
-    embed = discord.Embed(
-        title="🎮 **SẢNH GAME - BANANAVUIVE** 🎮",
-        description="⏳ Chuẩn bị bắt đầu...\nHãy tham gia bằng cách bấm nút bên dưới!",
-        color=discord.Color.blue()
-    )
-    view = JoinView()
-    await interaction.response.send_message(embed=embed, view=view)
-
-    for i in range(START_COUNTDOWN, 0, -1):
-        await interaction.edit_original_response(content=f"⏳ Bắt đầu sau **{i}** giây...")
-        await asyncio.sleep(1)
-
-    # Hiện bảng vote
-    embed_vote = discord.Embed(
-        title="🎮 **CHỌN MINI GAME** 🎮",
-        description="Bấm nút bên dưới để bỏ phiếu chọn game.\n"
-                    f"⏳ Thời gian còn lại: **{VOTE_DURATION}s**\n"
-                    "🏆 Game có số phiếu cao nhất sẽ được chọn!",
-        color=discord.Color.blue()
-    )
-    for game_id, game in MINI_GAMES.items():
-        embed_vote.add_field(name=f"{game['emoji']} {game['name']}", value=game['desc'], inline=False)
-
-    view = VoteView(MINI_GAMES)
-    msg = await interaction.followup.send(embed=embed_vote, view=view)
-    await asyncio.sleep(VOTE_DURATION)
-
-    if not view.votes:
-        await interaction.followup.send("❌ Không có ai bỏ phiếu! Hãy dùng `/start` lại.", ephemeral=True)
-        return
-
-    vote_counts = {}
-    for game_id in view.votes.values():
-        vote_counts[game_id] = vote_counts.get(game_id, 0) + 1
-
-    max_votes = max(vote_counts.values())
-    top_games = [gid for gid, count in vote_counts.items() if count == max_votes]
-    chosen_id = random.choice(top_games)
-    chosen_game = MINI_GAMES[chosen_id]
-
-    embed_result = discord.Embed(
-        title="🎉 **GAME ĐƯỢC CHỌN** 🎉",
-        description=f"**{chosen_game['emoji']} {chosen_game['name']}**\n"
-                    f"📖 {chosen_game['desc']}\n"
-                    f"🗳️ Số phiếu: **{max_votes}**",
-        color=discord.Color.gold()
-    )
-    await interaction.followup.send(embed=embed_result)
-
-    # Chạy game với chế độ tương ứng
-    if chosen_game['mode'] == "team":
-        await run_team_game(interaction.channel, chosen_id)
-    else:
-        await run_mini_game(interaction.channel, chosen_id)
-
 # ===== LỚP JOIN =====
 class JoinView(discord.ui.View):
     def __init__(self):
         super().__init__(timeout=START_COUNTDOWN)
         self.add_item(discord.ui.Button(label="🎮 Tham gia ngay!", style=discord.ButtonStyle.success, custom_id="join_start"))
-
-@client.event
-async def on_interaction(interaction: discord.Interaction):
-    if interaction.type == discord.InteractionType.component:
-        if interaction.data.get("custom_id") == "join_start":
-            user_id = str(interaction.user.id)
-            if user_id not in players:
-                players[user_id] = interaction.user.name
-                save_players(players)
-                await interaction.response.send_message(f"✅ **{interaction.user.mention}** đã tham gia!", ephemeral=False)
-            else:
-                await interaction.response.send_message("❌ Bạn đã tham gia rồi!", ephemeral=True)
 
 # ===== HÀM CHẠY MINI GAME =====
 async def run_mini_game(channel, game_id):
@@ -247,100 +172,6 @@ async def run_mini_game(channel, game_id):
 async def run_team_game(channel, game_id):
     if game_id == "11":
         await game_team_duel(channel)
-
-# ===== MINI GAME 11: ĐẤU TEAM =====
-async def game_team_duel(channel):
-    # Lấy danh sách người chơi đã tham gia
-    player_ids = list(players.keys())
-    if len(player_ids) < 2:
-        await channel.send("❌ Cần ít nhất 2 người để chơi team!")
-        return
-
-    # Chia 2 đội ngẫu nhiên
-    random.shuffle(player_ids)
-    team1 = player_ids[:len(player_ids)//2]
-    team2 = player_ids[len(player_ids)//2:]
-
-    team1_mentions = ", ".join([f"<@{uid}>" for uid in team1])
-    team2_mentions = ", ".join([f"<@{uid}>" for uid in team2])
-
-    embed = discord.Embed(
-        title="⚔️ **ĐẤU TEAM** ⚔️",
-        description=f"**Đội 1:** {team1_mentions}\n**Đội 2:** {team2_mentions}\n\nHãy thi đấu để giành chiến thắng!",
-        color=discord.Color.red()
-    )
-    await channel.send(embed=embed)
-
-    # Chọn câu hỏi cho cả 2 đội
-    q = random.choice(QUESTIONS)
-    embed_q = discord.Embed(
-        title="❓ **Câu hỏi dành cho cả 2 đội**",
-        description=f"**{q['question']}**\n\nĐội nào trả lời đúng trước sẽ thắng!",
-        color=discord.Color.blue()
-    )
-    await channel.send(embed=embed_q)
-
-    def check(msg):
-        return msg.author.id in [int(uid) for uid in player_ids] and msg.channel == channel
-
-    try:
-        msg = await client.wait_for('message', timeout=30.0, check=check)
-        answer = msg.content.lower()
-        correct = q['options'][q['answer']].lower()
-        if answer == correct:
-            # Xác định đội của người trả lời
-            if str(msg.author.id) in team1:
-                await channel.send(f"🎉 **Đội 1** trả lời đúng! +10 điểm cho toàn đội!")
-                for uid in team1:
-                    add_points(uid, 10)
-            else:
-                await channel.send(f"🎉 **Đội 2** trả lời đúng! +10 điểm cho toàn đội!")
-                for uid in team2:
-                    add_points(uid, 10)
-        else:
-            await channel.send(f"❌ Sai! Đáp án đúng là: **{correct}**")
-    except asyncio.TimeoutError:
-        await channel.send(f"⏰ Hết giờ! Đáp án đúng là: **{correct}**")
-
-# ===== MINI GAME 12: SOLO ĐẤU =====
-async def game_solo_duel(channel):
-    # Lấy danh sách người chơi đã tham gia
-    player_ids = list(players.keys())
-    if len(player_ids) < 2:
-        await channel.send("❌ Cần ít nhất 2 người để solo đấu!")
-        return
-
-    # Chọn 2 người ngẫu nhiên
-    p1, p2 = random.sample(player_ids, 2)
-    embed = discord.Embed(
-        title="🎖️ **SOLO ĐẤU** 🎖️",
-        description=f"**{p1}** vs **{p2}**\nAi trả lời đúng trước sẽ thắng!",
-        color=discord.Color.gold()
-    )
-    await channel.send(embed=embed)
-
-    q = random.choice(QUESTIONS)
-    embed_q = discord.Embed(
-        title="❓ **Câu hỏi**",
-        description=f"**{q['question']}**",
-        color=discord.Color.blue()
-    )
-    await channel.send(embed=embed_q)
-
-    def check(msg):
-        return msg.author.id in [int(p1), int(p2)] and msg.channel == channel
-
-    try:
-        msg = await client.wait_for('message', timeout=30.0, check=check)
-        answer = msg.content.lower()
-        correct = q['options'][q['answer']].lower()
-        if answer == correct:
-            await channel.send(f"🎉 **{msg.author.mention}** thắng! +15 điểm")
-            add_points(msg.author.id, 15)
-        else:
-            await channel.send(f"❌ Sai! Đáp án đúng là: **{correct}**")
-    except asyncio.TimeoutError:
-        await channel.send(f"⏰ Hết giờ! Đáp án đúng là: **{correct}**")
 
 # ===== MINI GAME 1: ĐOÁN SỐ =====
 async def game_guess_number(channel):
@@ -523,6 +354,94 @@ async def game_challenge(channel):
     except asyncio.TimeoutError:
         await channel.send("⏰ Không ai hoàn thành thử thách!")
 
+# ===== MINI GAME 11: ĐẤU TEAM =====
+async def game_team_duel(channel):
+    player_ids = list(players.keys())
+    if len(player_ids) < 2:
+        await channel.send("❌ Cần ít nhất 2 người để chơi team!")
+        return
+
+    random.shuffle(player_ids)
+    team1 = player_ids[:len(player_ids)//2]
+    team2 = player_ids[len(player_ids)//2:]
+
+    team1_mentions = ", ".join([f"<@{uid}>" for uid in team1])
+    team2_mentions = ", ".join([f"<@{uid}>" for uid in team2])
+
+    embed = discord.Embed(
+        title="⚔️ **ĐẤU TEAM** ⚔️",
+        description=f"**Đội 1:** {team1_mentions}\n**Đội 2:** {team2_mentions}\n\nHãy thi đấu để giành chiến thắng!",
+        color=discord.Color.red()
+    )
+    await channel.send(embed=embed)
+
+    q = random.choice(QUESTIONS)
+    embed_q = discord.Embed(
+        title="❓ **Câu hỏi dành cho cả 2 đội**",
+        description=f"**{q['question']}**\n\nĐội nào trả lời đúng trước sẽ thắng!",
+        color=discord.Color.blue()
+    )
+    await channel.send(embed=embed_q)
+
+    def check(msg):
+        return msg.author.id in [int(uid) for uid in player_ids] and msg.channel == channel
+
+    try:
+        msg = await client.wait_for('message', timeout=30.0, check=check)
+        answer = msg.content.lower()
+        correct = q['options'][q['answer']].lower()
+        if answer == correct:
+            if str(msg.author.id) in team1:
+                await channel.send(f"🎉 **Đội 1** trả lời đúng! +10 điểm cho toàn đội!")
+                for uid in team1:
+                    add_points(uid, 10)
+            else:
+                await channel.send(f"🎉 **Đội 2** trả lời đúng! +10 điểm cho toàn đội!")
+                for uid in team2:
+                    add_points(uid, 10)
+        else:
+            await channel.send(f"❌ Sai! Đáp án đúng là: **{correct}**")
+    except asyncio.TimeoutError:
+        await channel.send(f"⏰ Hết giờ! Đáp án đúng là: **{correct}**")
+
+# ===== MINI GAME 12: SOLO ĐẤU =====
+async def game_solo_duel(channel):
+    player_ids = list(players.keys())
+    if len(player_ids) < 2:
+        await channel.send("❌ Cần ít nhất 2 người để solo đấu!")
+        return
+
+    p1, p2 = random.sample(player_ids, 2)
+    embed = discord.Embed(
+        title="🎖️ **SOLO ĐẤU** 🎖️",
+        description=f"<@{p1}> vs <@{p2}>\nAi trả lời đúng trước sẽ thắng!",
+        color=discord.Color.gold()
+    )
+    await channel.send(embed=embed)
+
+    q = random.choice(QUESTIONS)
+    embed_q = discord.Embed(
+        title="❓ **Câu hỏi**",
+        description=f"**{q['question']}**",
+        color=discord.Color.blue()
+    )
+    await channel.send(embed=embed_q)
+
+    def check(msg):
+        return msg.author.id in [int(p1), int(p2)] and msg.channel == channel
+
+    try:
+        msg = await client.wait_for('message', timeout=30.0, check=check)
+        answer = msg.content.lower()
+        correct = q['options'][q['answer']].lower()
+        if answer == correct:
+            await channel.send(f"🎉 **{msg.author.mention}** thắng! +15 điểm")
+            add_points(msg.author.id, 15)
+        else:
+            await channel.send(f"❌ Sai! Đáp án đúng là: **{correct}**")
+    except asyncio.TimeoutError:
+        await channel.send(f"⏰ Hết giờ! Đáp án đúng là: **{correct}**")
+
 # ===== CỘNG ĐIỂM =====
 def add_points(user_id, points):
     user_id = str(user_id)
@@ -546,7 +465,79 @@ QUESTIONS = [
 # ===== KHỞI TẠO CLIENT VÀ TREE =====
 intents = discord.Intents.all()
 client = discord.Client(intents=intents)
-tree = app_commands.CommandTree(client)
+tree = app_commands.CommandTree(client)  # <--- DÒNG QUAN TRỌNG
+
+# ===== LỆNH START =====
+@tree.command(name="start", description="🎮 Mở sảnh game và bắt đầu vote mini game")
+async def slash_start(interaction: discord.Interaction):
+    if not interaction.guild:
+        await interaction.response.send_message("❌ Lệnh này chỉ dùng trong server!", ephemeral=True)
+        return
+
+    embed = discord.Embed(
+        title="🎮 **SẢNH GAME - BANANAVUIVE** 🎮",
+        description="⏳ Chuẩn bị bắt đầu...\nHãy tham gia bằng cách bấm nút bên dưới!",
+        color=discord.Color.blue()
+    )
+    view = JoinView()
+    await interaction.response.send_message(embed=embed, view=view)
+
+    for i in range(START_COUNTDOWN, 0, -1):
+        await interaction.edit_original_response(content=f"⏳ Bắt đầu sau **{i}** giây...")
+        await asyncio.sleep(1)
+
+    embed_vote = discord.Embed(
+        title="🎮 **CHỌN MINI GAME** 🎮",
+        description="Bấm nút bên dưới để bỏ phiếu chọn game.\n"
+                    f"⏳ Thời gian còn lại: **{VOTE_DURATION}s**\n"
+                    "🏆 Game có số phiếu cao nhất sẽ được chọn!",
+        color=discord.Color.blue()
+    )
+    for game_id, game in MINI_GAMES.items():
+        embed_vote.add_field(name=f"{game['emoji']} {game['name']}", value=game['desc'], inline=False)
+
+    view = VoteView(MINI_GAMES)
+    msg = await interaction.followup.send(embed=embed_vote, view=view)
+    await asyncio.sleep(VOTE_DURATION)
+
+    if not view.votes:
+        await interaction.followup.send("❌ Không có ai bỏ phiếu! Hãy dùng `/start` lại.", ephemeral=True)
+        return
+
+    vote_counts = {}
+    for game_id in view.votes.values():
+        vote_counts[game_id] = vote_counts.get(game_id, 0) + 1
+
+    max_votes = max(vote_counts.values())
+    top_games = [gid for gid, count in vote_counts.items() if count == max_votes]
+    chosen_id = random.choice(top_games)
+    chosen_game = MINI_GAMES[chosen_id]
+
+    embed_result = discord.Embed(
+        title="🎉 **GAME ĐƯỢC CHỌN** 🎉",
+        description=f"**{chosen_game['emoji']} {chosen_game['name']}**\n"
+                    f"📖 {chosen_game['desc']}\n"
+                    f"🗳️ Số phiếu: **{max_votes}**",
+        color=discord.Color.gold()
+    )
+    await interaction.followup.send(embed=embed_result)
+
+    if chosen_game['mode'] == "team":
+        await run_team_game(interaction.channel, chosen_id)
+    else:
+        await run_mini_game(interaction.channel, chosen_id)
+
+@client.event
+async def on_interaction(interaction: discord.Interaction):
+    if interaction.type == discord.InteractionType.component:
+        if interaction.data.get("custom_id") == "join_start":
+            user_id = str(interaction.user.id)
+            if user_id not in players:
+                players[user_id] = interaction.user.name
+                save_players(players)
+                await interaction.response.send_message(f"✅ **{interaction.user.mention}** đã tham gia!", ephemeral=False)
+            else:
+                await interaction.response.send_message("❌ Bạn đã tham gia rồi!", ephemeral=True)
 
 # ===== LỆNH RANDOM =====
 @tree.command(name="random", description="🎡 Chọn ngẫu nhiên 1 người đã tham gia và đang online")
