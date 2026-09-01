@@ -58,7 +58,7 @@ def save_saved_invite(link):
 
 saved_invite = load_saved_invite()
 
-# ===== HỆ THỐNG RANK (CHỈ DÙNG EMOJI + MÀU, KHÔNG ẢNH) =====
+# ===== HỆ THỐNG RANK (CHỈ DÙNG EMOJI + MÀU) =====
 RANK_COLORS = {
     "Đồng": 0xB87333,
     "Bạc": 0xC0C0C0,
@@ -120,7 +120,7 @@ def save_rankings(data):
 
 rankings = load_rankings()
 
-# ===== CỘNG ĐIỂM (CÓ LOG) =====
+# ===== CỘNG ĐIỂM =====
 def add_points(user_id, points):
     user_id = str(user_id)
     try:
@@ -782,20 +782,23 @@ async def on_interaction(interaction: discord.Interaction):
     custom_id = interaction.data.get("custom_id")
     
     if custom_id == "join_start":
-        global players
-        players = load_players()
-        user_id = str(interaction.user.id)
-        if user_id not in players:
-            players[user_id] = interaction.user.name
-            save_players(players)
-            embed = interaction.message.embeds[0]
-            player_list = "\n".join([f"👤 {name}" for name in players.values()]) if players else "Chưa có ai tham gia"
-            embed.description = f"⏳ Nhấn **Tham gia ngay!** để vào game.\n👥 Số người đã tham gia: **{len(players)}**\n📋 **Danh sách:**\n{player_list}\n▶️ Nhấn **Bắt đầu game!** để bắt đầu vote."
-            view = StartView()
-            await interaction.response.edit_message(embed=embed, view=view)
-            await interaction.followup.send(f"✅ **{interaction.user.mention}** đã tham gia!", ephemeral=False)
-        else:
-            await interaction.response.send_message("❌ Bạn đã tham gia rồi!", ephemeral=True)
+        try:
+            global players
+            players = load_players()
+            user_id = str(interaction.user.id)
+            if user_id not in players:
+                players[user_id] = interaction.user.name
+                save_players(players)
+                embed = interaction.message.embeds[0]
+                player_list = "\n".join([f"👤 {name}" for name in players.values()]) if players else "Chưa có ai tham gia"
+                embed.description = f"⏳ Nhấn **Tham gia ngay!** để vào game.\n👥 Số người đã tham gia: **{len(players)}**\n📋 **Danh sách:**\n{player_list}\n▶️ Nhấn **Bắt đầu game!** để bắt đầu vote."
+                view = StartView()
+                await interaction.response.edit_message(embed=embed, view=view)
+                await interaction.followup.send(f"✅ **{interaction.user.mention}** đã tham gia!", ephemeral=False)
+            else:
+                await interaction.response.send_message("❌ Bạn đã tham gia rồi!", ephemeral=True)
+        except Exception as e:
+            print(f"[!] Lỗi join_start: {e}")
 
     elif custom_id == "start_game":
         if len(players) < 1:
