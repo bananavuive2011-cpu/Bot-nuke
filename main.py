@@ -24,6 +24,7 @@ PLAYERS_FILE = "players.json"
 QUIZ_DURATION = 30
 VOTE_DURATION = 10
 START_COUNTDOWN = 3
+INACTIVITY_TIMEOUT = 60  # 60 giây không ai tham gia thì reset
 
 # ===== QUẢN LÝ NGƯỜI CHƠI =====
 def load_players():
@@ -35,6 +36,11 @@ def load_players():
 def save_players(data):
     with open(PLAYERS_FILE, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=4)
+
+def reset_players():
+    global players
+    players = {}
+    save_players(players)
 
 players = load_players()
 
@@ -157,7 +163,7 @@ class VoteView(discord.ui.View):
 # ===== LỚP START =====
 class StartView(discord.ui.View):
     def __init__(self):
-        super().__init__(timeout=300)
+        super().__init__(timeout=INACTIVITY_TIMEOUT)
         self.add_item(discord.ui.Button(label="🎮 Tham gia ngay!", style=discord.ButtonStyle.success, custom_id="join_start"))
         self.add_item(discord.ui.Button(label="▶️ Bắt đầu game!", style=discord.ButtonStyle.primary, custom_id="start_game"))
 
@@ -191,11 +197,15 @@ async def run_mini_game(channel, game_id):
         await game_solo_duel(channel)
     elif game_id == "13":
         await game_race(channel)
+    
+    # Reset danh sách người chơi sau mỗi game
+    reset_players()
 
 # ===== HÀM CHẠY TEAM GAME =====
 async def run_team_game(channel, game_id):
     if game_id == "11":
         await game_team_duel(channel)
+    reset_players()
 
 # ===== MINI GAME 1: ĐOÁN SỐ =====
 async def game_guess_number(channel):
@@ -732,6 +742,9 @@ async def slash_start(interaction: discord.Interaction):
         await interaction.response.send_message("❌ Lệnh này chỉ dùng trong server!", ephemeral=True)
         return
 
+    # Reset danh sách người chơi mỗi khi bắt đầu
+    reset_players()
+
     player_list = "\n".join([f"👤 {name}" for name in players.values()]) if players else "Chưa có ai tham gia"
     embed = discord.Embed(
         title="🎮 **SẢNH GAME - BANANAVUIVE** 🎮",
@@ -763,7 +776,6 @@ async def on_interaction(interaction: discord.Interaction):
             embed = interaction.message.embeds[0]
             player_list = "\n".join([f"👤 {name}" for name in players.values()]) if players else "Chưa có ai tham gia"
             embed.description = f"⏳ Nhấn **Tham gia ngay!** để vào game.\n👥 Số người đã tham gia: **{len(players)}**\n📋 **Danh sách:**\n{player_list}\n▶️ Nhấn **Bắt đầu game!** để bắt đầu vote."
-            # Lấy view từ message
             view = StartView()
             await interaction.response.edit_message(embed=embed, view=view)
             await interaction.followup.send(f"✅ **{interaction.user.mention}** đã tham gia!", ephemeral=False)
