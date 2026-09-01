@@ -38,37 +38,21 @@ def save_players(data):
 
 players = load_players()
 
-# ===== HỆ THỐNG RANK (CHỈ DÙNG EMOJI + MÀU) =====
-RANK_COLORS = {
-    "Đồng": 0xB87333,
-    "Bạc": 0xC0C0C0,
-    "Vàng": 0xFFD700,
-    "Bạch Kim": 0xE5E4E2,
-    "Kim Cương": 0xB9F2FF,
-    "Tinh Anh": 0x7B68EE,
-    "Cao Thủ": 0xFF4500,
-    "Đại Pro": 0x9400D3,
-    "Vua": 0xFFD700,
-    "Người Giàu": 0x008000,
-    "Triệu Phú": 0x1E90FF,
-    "Tỉ Phú": 0x8B0000,
-    "Siêu Tỉ Phú": 0xFF0000
-}
-
-RANK_PERKS = {
-    "Đồng": "Không có đặc quyền",
-    "Bạc": "Không có đặc quyền",
-    "Vàng": "Không có đặc quyền",
-    "Bạch Kim": "Không có đặc quyền",
-    "Kim Cương": "Không có đặc quyền",
-    "Tinh Anh": "Không có đặc quyền",
-    "Cao Thủ": "Màu tên riêng trong bảng xếp hạng",
-    "Đại Pro": "Màu tên riêng + biểu tượng đặc biệt",
-    "Vua": "Màu tên riêng + biểu tượng đặc biệt + được tag khi lên rank",
-    "Người Giàu": "Biểu tượng 💰 trước tên",
-    "Triệu Phú": "Biểu tượng 💎 trước tên",
-    "Tỉ Phú": "Biểu tượng 👑 trước tên",
-    "Siêu Tỉ Phú": "Biểu tượng 🏆 trước tên + màu vàng rực"
+# ===== HỆ THỐNG RANK =====
+RANK_IMAGES = {
+    "Đồng": "https://cdn.discordapp.com/attachments/.../bronze.png",
+    "Bạc": "https://cdn.discordapp.com/attachments/.../silver.png",
+    "Vàng": "https://cdn.discordapp.com/attachments/.../gold.png",
+    "Bạch Kim": "https://cdn.discordapp.com/attachments/.../platinum.png",
+    "Kim Cương": "https://cdn.discordapp.com/attachments/.../diamond.png",
+    "Tinh Anh": "https://cdn.discordapp.com/attachments/.../elite.png",
+    "Cao Thủ": "https://cdn.discordapp.com/attachments/.../master.png",
+    "Đại Pro": "https://cdn.discordapp.com/attachments/.../grandmaster.png",
+    "Vua": "https://cdn.discordapp.com/attachments/.../king.png",
+    "Người Giàu": "https://cdn.discordapp.com/attachments/.../rich.png",
+    "Triệu Phú": "https://cdn.discordapp.com/attachments/.../millionaire.png",
+    "Tỉ Phú": "https://cdn.discordapp.com/attachments/.../billionaire.png",
+    "Siêu Tỉ Phú": "https://cdn.discordapp.com/attachments/.../richest.png"
 }
 
 RANK_THRESHOLDS = [
@@ -100,11 +84,8 @@ def get_rank_emoji(rank):
             return emoji
     return "⭐"
 
-def get_rank_color(rank):
-    return RANK_COLORS.get(rank, 0x5865F2)
-
-def get_rank_perk(rank):
-    return RANK_PERKS.get(rank, "Không có đặc quyền")
+def get_rank_image(rank):
+    return RANK_IMAGES.get(rank, "https://cdn.discordapp.com/attachments/.../default.png")
 
 # ===== LƯU TRỮ ĐIỂM =====
 def load_rankings():
@@ -141,8 +122,8 @@ GAME_INSTRUCTIONS = {
     "1": "🎯 **ĐOÁN SỐ**\nĐoán một số từ 1 đến 100. Bạn có 5 lần thử. Mỗi lần đoán đúng được +10 điểm.",
     "2": "🧠 **ĐỐ VUI**\nTrả lời câu hỏi trắc nghiệm. Chọn đáp án đúng để nhận +10 điểm.",
     "3": "⚡ **TÍNH NHANH**\nGiải phép toán trong 5 giây. Trả lời đúng +10 điểm.",
-    "4": "🎲 **ĐỎ ĐEN**\nChọn Đỏ hoặc Đen, cược tối thiểu 10 điểm. Đúng +20, sai -10.",
-    "5": "🎲 **TÀI XỈU**\nĐoán số xúc xắc (1-6) và cược tối thiểu 10 điểm. Đúng nhận điểm từ người thua.",
+    "4": "🎲 **ĐỎ ĐEN**\nChọn Đỏ hoặc Đen, cược 10 điểm. Đúng +20, sai -10.",
+    "5": "🎲 **TÀI XỈU**\nĐoán số xúc xắc (1-6) và cược điểm. Đúng nhận điểm từ người thua.",
     "6": "📝 **ĐIỀN TỪ**\nĐiền từ đúng vào chỗ trống. Đúng +10 điểm.",
     "7": "🎵 **ĐOÁN BÀI HÁT**\nĐoán tên bài hát từ gợi ý. Đúng +10 điểm.",
     "8": "🏆 **AI NHANH HƠN**\nAi trả lời 'tôi' nhanh nhất sẽ thắng +10 điểm.",
@@ -150,7 +131,7 @@ GAME_INSTRUCTIONS = {
     "10": "💪 **THỬ THÁCH**\nHoàn thành thử thách ngẫu nhiên để nhận +10 điểm.",
     "11": "⚔️ **ĐẤU TEAM**\nChia 2 đội, đội nào trả lời đúng trước sẽ thắng.",
     "12": "🎖️ **SOLO ĐẤU**\n1vs1, ai trả lời đúng trước sẽ thắng +15 điểm.",
-    "13": "🏎️ **ĐUA XE**\nChọn màu xe và cược tối thiểu 10 điểm. Xe nào về đích trước sẽ thắng."
+    "13": "🏎️ **ĐUA XE**\nChọn màu xe và cược điểm. Xe nào về đích trước sẽ thắng."
 }
 
 # ===== VOTE MINI GAME =====
@@ -284,7 +265,7 @@ async def game_math_fast(channel):
 async def game_red_black(channel):
     colors = ["Đỏ", "Đen"]
     result = random.choice(colors)
-    embed = discord.Embed(title="🎲 ĐỎ ĐEN", description="Chọn **Đỏ** hoặc **Đen**. Cược tối thiểu 10 điểm!\nNếu đúng bạn nhận +20 điểm, sai mất 10 điểm.", color=discord.Color.red())
+    embed = discord.Embed(title="🎲 ĐỎ ĐEN", description="Chọn **Đỏ** hoặc **Đen**. Cược 10 điểm!\nNếu đúng bạn nhận +20 điểm, sai mất 10 điểm.", color=discord.Color.red())
     await channel.send(embed=embed)
     def check(msg):
         return msg.author != client.user and msg.channel == channel and msg.content.lower() in ['đỏ', 'đen']
@@ -751,10 +732,13 @@ async def slash_start(interaction: discord.Interaction):
         await interaction.response.send_message("❌ Lệnh này chỉ dùng trong server!", ephemeral=True)
         return
 
+    # Hiển thị danh sách người tham gia
+    player_list = "\n".join([f"👤 {name}" for name in players.values()]) if players else "Chưa có ai tham gia"
     embed = discord.Embed(
         title="🎮 **SẢNH GAME - BANANAVUIVE** 🎮",
-        description="⏳ Nhấn **Tham gia ngay!** để vào game.\n"
+        description=f"⏳ Nhấn **Tham gia ngay!** để vào game.\n"
                     f"👥 Số người đã tham gia: **{len(players)}**\n"
+                    f"📋 **Danh sách:**\n{player_list}\n"
                     "▶️ Nhấn **Bắt đầu game!** để bắt đầu vote.",
         color=discord.Color.blue()
     )
@@ -770,12 +754,16 @@ async def on_interaction(interaction: discord.Interaction):
     custom_id = interaction.data.get("custom_id")
     
     if custom_id == "join_start":
+        global players
+        players = load_players()  # Load lại để đảm bảo dữ liệu mới nhất
         user_id = str(interaction.user.id)
         if user_id not in players:
             players[user_id] = interaction.user.name
             save_players(players)
+            # Cập nhật embed với danh sách mới
             embed = interaction.message.embeds[0]
-            embed.description = f"⏳ Nhấn **Tham gia ngay!** để vào game.\n👥 Số người đã tham gia: **{len(players)}**\n▶️ Nhấn **Bắt đầu game!** để bắt đầu vote."
+            player_list = "\n".join([f"👤 {name}" for name in players.values()]) if players else "Chưa có ai tham gia"
+            embed.description = f"⏳ Nhấn **Tham gia ngay!** để vào game.\n👥 Số người đã tham gia: **{len(players)}**\n📋 **Danh sách:**\n{player_list}\n▶️ Nhấn **Bắt đầu game!** để bắt đầu vote."
             await interaction.response.edit_message(embed=embed, view=interaction.message.components[0])
             await interaction.followup.send(f"✅ **{interaction.user.mention}** đã tham gia!", ephemeral=False)
         else:
@@ -874,18 +862,12 @@ async def slash_random(interaction: discord.Interaction):
     await interaction.response.send_message(embed=embed, view=view)
 
 # ===== LỆNH RANKINGS =====
-@tree.command(name="rankings", description="🏆 Bảng xếp hạng toàn server + tham khảo rank")
+@tree.command(name="rankings", description="🏆 Bảng xếp hạng toàn server")
 async def slash_rankings(interaction: discord.Interaction):
-    # Hiển thị bảng tham khảo rank
-    rank_ref = "📊 **BẢNG THAM KHẢO RANK**\n"
-    for threshold, name, emoji in RANK_THRESHOLDS:
-        perk = get_rank_perk(name)
-        rank_ref += f"{emoji} **{name}** – {threshold} điểm – *{perk}*\n"
-
     if not rankings:
         embed = discord.Embed(
             title="🏆 **BẢNG XẾP HẠNG** 🏆",
-            description=f"❌ **Chưa có ai ghi điểm!**\n\n{rank_ref}",
+            description="❌ **Chưa có ai ghi điểm!**\nHãy tham gia trò chơi và trở thành người đứng đầu!",
             color=discord.Color.dark_gold()
         )
         embed.set_footer(text="💪 Hãy trả lời câu hỏi để tích điểm! – by Bananavuive")
@@ -937,12 +919,6 @@ async def slash_rankings(interaction: discord.Interaction):
             inline=False
         )
 
-    embed.add_field(
-        name="📋 **THAM KHẢO RANK**",
-        value=rank_ref,
-        inline=False
-    )
-
     embed.set_footer(text="🏅 Trả lời /random để nhận điểm! – by Bananavuive")
     await interaction.response.send_message(embed=embed)
 
@@ -953,14 +929,16 @@ async def slash_diem(interaction: discord.Interaction):
     score = rankings.get(user_id, 0)
     rank = get_rank(score)
     rank_emoji = get_rank_emoji(rank)
-    color = get_rank_color(rank)
+    rank_image = get_rank_image(rank)
     
     embed = discord.Embed(
         title="👑 **BẢNG ĐIỂM CÁ NHÂN** 👑",
         description=f"**{interaction.user.mention}**",
-        color=color
+        color=discord.Color.gold()
     )
     embed.set_thumbnail(url=interaction.user.display_avatar.url)
+    if rank_image:
+        embed.set_image(url=rank_image)
     embed.add_field(
         name=f"{rank_emoji} **RANK** {rank_emoji}",
         value=f"**{rank}**",
@@ -1026,8 +1004,9 @@ class QuizView(discord.ui.View):
                 embed_rank = discord.Embed(
                     title="🎉 **LÊN RANK!** 🎉",
                     description=f"**{interaction.user.mention}** đã đạt rank **{new_rank}** {get_rank_emoji(new_rank)}!",
-                    color=get_rank_color(new_rank)
+                    color=discord.Color.gold()
                 )
+                embed_rank.set_image(url=get_rank_image(new_rank))
                 await interaction.channel.send(embed=embed_rank)
             
             await interaction.response.send_message(
