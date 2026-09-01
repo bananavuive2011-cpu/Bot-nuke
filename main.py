@@ -38,21 +38,21 @@ def save_players(data):
 
 players = load_players()
 
-# ===== HỆ THỐNG RANK =====
-RANK_IMAGES = {
-    "Đồng": "https://i.imgur.com/bronze.png",
-    "Bạc": "https://i.imgur.com/silver.png",
-    "Vàng": "https://i.imgur.com/gold.png",
-    "Bạch Kim": "https://i.imgur.com/platinum.png",
-    "Kim Cương": "https://i.imgur.com/diamond.png",
-    "Tinh Anh": "https://i.imgur.com/elite.png",
-    "Cao Thủ": "https://i.imgur.com/master.png",
-    "Đại Pro": "https://i.imgur.com/grandmaster.png",
-    "Vua": "https://i.imgur.com/king.png",
-    "Người Giàu": "https://i.imgur.com/rich.png",
-    "Triệu Phú": "https://i.imgur.com/millionaire.png",
-    "Tỉ Phú": "https://i.imgur.com/billionaire.png",
-    "Siêu Tỉ Phú": "https://i.imgur.com/richest.png"
+# ===== HỆ THỐNG RANK (DÙNG EMOJI + MÀU, KHÔNG CẦN ẢNH) =====
+RANK_COLORS = {
+    "Đồng": 0xB87333,
+    "Bạc": 0xC0C0C0,
+    "Vàng": 0xFFD700,
+    "Bạch Kim": 0xE5E4E2,
+    "Kim Cương": 0xB9F2FF,
+    "Tinh Anh": 0x7B68EE,
+    "Cao Thủ": 0xFF4500,
+    "Đại Pro": 0x9400D3,
+    "Vua": 0xFFD700,
+    "Người Giàu": 0x008000,
+    "Triệu Phú": 0x1E90FF,
+    "Tỉ Phú": 0x8B0000,
+    "Siêu Tỉ Phú": 0xFF0000
 }
 
 RANK_THRESHOLDS = [
@@ -84,8 +84,8 @@ def get_rank_emoji(rank):
             return emoji
     return "⭐"
 
-def get_rank_image(rank):
-    return RANK_IMAGES.get(rank, "https://i.imgur.com/default.png")
+def get_rank_color(rank):
+    return RANK_COLORS.get(rank, 0x5865F2)
 
 # ===== LƯU TRỮ ĐIỂM =====
 def load_rankings():
@@ -922,11 +922,12 @@ async def slash_diem(interaction: discord.Interaction):
     score = rankings.get(user_id, 0)
     rank = get_rank(score)
     rank_emoji = get_rank_emoji(rank)
+    color = get_rank_color(rank)
     
     embed = discord.Embed(
         title="👑 **BẢNG ĐIỂM CÁ NHÂN** 👑",
         description=f"**{interaction.user.mention}**",
-        color=discord.Color.gold()
+        color=color
     )
     embed.set_thumbnail(url=interaction.user.display_avatar.url)
     embed.add_field(
@@ -949,7 +950,6 @@ async def slash_diem(interaction: discord.Interaction):
         value="🔥 Tiếp tục cố gắng!" if score < 50 else "💪 Rất tốt!" if score < 100 else "🌟 Xuất sắc!" if score < 200 else "👑 Huyền thoại!",
         inline=True
     )
-    embed.set_image(url=get_rank_image(rank))
     embed.set_footer(text="📌 Trả lời /random để nhận thêm điểm! – by Bananavuive")
     
     await interaction.response.send_message(embed=embed, ephemeral=True)
@@ -995,9 +995,8 @@ class QuizView(discord.ui.View):
                 embed_rank = discord.Embed(
                     title="🎉 **LÊN RANK!** 🎉",
                     description=f"**{interaction.user.mention}** đã đạt rank **{new_rank}** {get_rank_emoji(new_rank)}!",
-                    color=discord.Color.gold()
+                    color=get_rank_color(new_rank)
                 )
-                embed_rank.set_image(url=get_rank_image(new_rank))
                 await interaction.channel.send(embed=embed_rank)
             
             await interaction.response.send_message(
