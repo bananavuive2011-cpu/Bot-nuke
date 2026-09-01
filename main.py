@@ -733,7 +733,7 @@ async def game_race(channel):
 
     await channel.send(result_msg)
 
-# ===== CÂU HỎI =====
+# ===== CÂU HỎI MỞ RỘNG =====
 QUESTIONS = [
     {"question": "Thủ đô của Việt Nam là?", "options": ["Hà Nội", "TP.HCM", "Đà Nẵng", "Hải Phòng"], "answer": 0},
     {"question": "2 + 2 = ?", "options": ["3", "4", "5", "6"], "answer": 1},
@@ -745,6 +745,26 @@ QUESTIONS = [
     {"question": "Ai là tác giả của 'Truyện Kiều'?", "options": ["Nguyễn Du", "Hồ Xuân Hương", "Nguyễn Đình Chiểu", "Tản Đà"], "answer": 0},
     {"question": "Động vật nào có cổ dài nhất?", "options": ["Hươu cao cổ", "Lạc đà", "Ngựa", "Voi"], "answer": 0},
     {"question": "Máy tính sử dụng hệ đếm nào?", "options": ["Thập phân", "Nhị phân", "Thập lục phân", "Bát phân"], "answer": 1},
+    {"question": "Năm 1945, Việt Nam giành độc lập từ tay nước nào?", "options": ["Pháp", "Nhật", "Mỹ", "Anh"], "answer": 0},
+    {"question": "Phương trình hóa học của nước là gì?", "options": ["H2O", "CO2", "NaCl", "HCl"], "answer": 0},
+    {"question": "Loài chim nào biết nói?", "options": ["Vẹt", "Đại bàng", "Cú mèo", "Chim sẻ"], "answer": 0},
+    {"question": "Số nguyên tố nào sau đây là nhỏ nhất?", "options": ["1", "2", "3", "5"], "answer": 1},
+    {"question": "Ai là người sáng lập ra Microsoft?", "options": ["Bill Gates", "Steve Jobs", "Elon Musk", "Mark Zuckerberg"], "answer": 0},
+    {"question": "Quốc kỳ của Việt Nam có màu gì?", "options": ["Đỏ và vàng", "Xanh và trắng", "Đỏ và trắng", "Vàng và đen"], "answer": 0},
+    {"question": "Đơn vị đo lường của cường độ dòng điện là gì?", "options": ["Ampe", "Vôn", "Ôm", "Watt"], "answer": 0},
+    {"question": "Bộ phận nào của cây thực hiện quang hợp?", "options": ["Lá", "Rễ", "Thân", "Hoa"], "answer": 0},
+    {"question": "Trái Đất tự quay quanh trục mất bao lâu?", "options": ["24 giờ", "12 giờ", "48 giờ", "365 ngày"], "answer": 0},
+    {"question": "Hợp chất NaCl còn gọi là gì?", "options": ["Muối ăn", "Đường", "Baking soda", "Giấm"], "answer": 0},
+    {"question": "Động vật nào có thể sống trên cạn và dưới nước?", "options": ["Cá sấu", "Cá heo", "Cá mập", "Cá voi"], "answer": 0},
+    {"question": "Số π (pi) xấp xỉ bằng bao nhiêu?", "options": ["3.14", "2.71", "1.61", "0.58"], "answer": 0},
+    {"question": "Ai là vị tướng nổi tiếng của Việt Nam trong kháng chiến chống Mỹ?", "options": ["Võ Nguyên Giáp", "Nguyễn Huệ", "Trần Hưng Đạo", "Lê Lợi"], "answer": 0},
+    {"question": "Màu sắc nào tượng trưng cho hòa bình?", "options": ["Trắng", "Đỏ", "Đen", "Xanh"], "answer": 0},
+    {"question": "Loại quả nào có nhiều vitamin C nhất?", "options": ["Cam", "Táo", "Chuối", "Nho"], "answer": 0},
+    {"question": "Năm nhuận có bao nhiêu ngày?", "options": ["366", "365", "364", "360"], "answer": 0},
+    {"question": "Sông nào dài nhất thế giới?", "options": ["Amazon", "Nile", "Mississippi", "Dương Tử"], "answer": 1},
+    {"question": "Người đầu tiên đặt chân lên mặt trăng là ai?", "options": ["Neil Armstrong", "Buzz Aldrin", "Yuri Gagarin", "John Glenn"], "answer": 0},
+    {"question": "Phần mềm nào dùng để duyệt web?", "options": ["Chrome", "Word", "Excel", "PowerPoint"], "answer": 0},
+    {"question": "Loài hoa nào là biểu tượng của tình yêu?", "options": ["Hoa hồng", "Hoa cúc", "Hoa lan", "Hoa sen"], "answer": 0}
 ]
 
 # ===== KHỞI TẠO CLIENT VÀ TREE =====
@@ -813,17 +833,33 @@ async def on_interaction(interaction: discord.Interaction):
 
         embed_vote = discord.Embed(
             title="🎮 **CHỌN MINI GAME** 🎮",
-            description="Bấm nút bên dưới để bỏ phiếu chọn game.\n"
-                        f"⏳ Thời gian còn lại: **{VOTE_DURATION}s**\n"
-                        "🏆 Game có số phiếu cao nhất sẽ được chọn!",
+            description=f"Bấm nút bên dưới để bỏ phiếu chọn game.\n⏳ Thời gian còn lại: **{VOTE_DURATION}s**\n🏆 Game có số phiếu cao nhất sẽ được chọn!",
             color=discord.Color.blue()
         )
         for game_id, game in MINI_GAMES.items():
             embed_vote.add_field(name=f"{game['emoji']} {game['name']}", value=game['desc'], inline=False)
 
         view = VoteView(MINI_GAMES)
-        await interaction.followup.send(embed=embed_vote, view=view)
-        await asyncio.sleep(VOTE_DURATION)
+        vote_msg = await interaction.followup.send(embed=embed_vote, view=view)
+        
+        # ===== BỘ ĐẾM NGƯỢC REAL-TIME =====
+        for remaining in range(VOTE_DURATION, 0, -1):
+            embed_vote.description = (
+                f"Bấm nút bên dưới để bỏ phiếu chọn game.\n"
+                f"⏳ Thời gian còn lại: **{remaining}s**\n"
+                "🏆 Game có số phiếu cao nhất sẽ được chọn!"
+            )
+            await vote_msg.edit(embed=embed_vote)
+            await asyncio.sleep(1)
+
+        # Cập nhật lần cuối hiển thị 0s
+        embed_vote.description = (
+            f"Bấm nút bên dưới để bỏ phiếu chọn game.\n"
+            f"⏳ Thời gian còn lại: **0s**\n"
+            "🏆 Game có số phiếu cao nhất sẽ được chọn!"
+        )
+        await vote_msg.edit(embed=embed_vote)
+        await asyncio.sleep(0.5)
 
         if not view.votes:
             await interaction.followup.send("❌ Không có ai bỏ phiếu! Hãy dùng `/start` lại.", ephemeral=True)
@@ -837,10 +873,6 @@ async def on_interaction(interaction: discord.Interaction):
         top_games = [gid for gid, count in vote_counts.items() if count == max_votes]
         chosen_id = random.choice(top_games)
         chosen_game = MINI_GAMES[chosen_id]
-
-        for i in range(10, 0, -1):
-            await interaction.edit_original_response(content=f"⏳ Kết thúc vote sau {i} giây...")
-            await asyncio.sleep(1)
 
         embed_result = discord.Embed(
             title="🎉 **GAME ĐƯỢC CHỌN** 🎉",
@@ -864,33 +896,6 @@ async def on_interaction(interaction: discord.Interaction):
             await interaction.response.send_message(f"✅ **{interaction.user.mention}** đã sẵn sàng!", ephemeral=False)
         else:
             await interaction.response.send_message("❌ Bạn chưa tham gia game!", ephemeral=True)
-
-# ===== LỆNH RANDOM =====
-@tree.command(name="random", description="🎡 Chọn ngẫu nhiên 1 người đã tham gia và đang online")
-async def slash_random(interaction: discord.Interaction):
-    if not interaction.guild:
-        await interaction.response.send_message("❌ Lệnh này chỉ dùng trong server!", ephemeral=True)
-        return
-
-    online_players = [
-        m for m in interaction.guild.members 
-        if str(m.id) in players and m.status != discord.Status.offline and not m.bot
-    ]
-    
-    if not online_players:
-        await interaction.response.send_message("❌ Không có người chơi nào đang online! Hãy dùng `/start` để tham gia.", ephemeral=True)
-        return
-
-    target = random.choice(online_players)
-    q = random.choice(QUESTIONS)
-
-    embed = discord.Embed(
-        title="🎡 **VÒNG QUAY NGẪU NHIÊN - ONLINE** 🎡",
-        description=f"🎯 **{target.mention}** được chọn!\n\n❓ **Câu hỏi:** {q['question']}\n\nHãy chọn đáp án bên dưới ({QUIZ_DURATION}s).",
-        color=discord.Color.purple()
-    )
-    view = QuizView(q, target)
-    await interaction.response.send_message(embed=embed, view=view)
 
 # ===== LỆNH RANKINGS =====
 @tree.command(name="rankings", description="🏆 Bảng xếp hạng toàn server")
@@ -951,7 +956,7 @@ async def slash_rankings(interaction: discord.Interaction):
                 inline=False
             )
 
-        embed.set_footer(text="🏅 Trả lời /random để nhận điểm! – by Bananavuive")
+        embed.set_footer(text="🏅 Trả lời câu hỏi trong game để nhận điểm! – by Bananavuive")
         await interaction.response.send_message(embed=embed)
     except Exception as e:
         print(f"[!] Lỗi rankings: {e}")
@@ -992,7 +997,7 @@ async def slash_diem(interaction: discord.Interaction):
             value="🔥 Tiếp tục cố gắng!" if score < 50 else "💪 Rất tốt!" if score < 100 else "🌟 Xuất sắc!" if score < 200 else "👑 Huyền thoại!",
             inline=True
         )
-        embed.set_footer(text="📌 Trả lời /random để nhận thêm điểm! – by Bananavuive")
+        embed.set_footer(text="📌 Tham gia /start để chơi game nhận điểm! – by Bananavuive")
         
         await interaction.response.send_message(embed=embed, ephemeral=True)
     except Exception as e:
@@ -1144,7 +1149,7 @@ async def on_ready():
     print(" NUKE + MINI GAME VOTE – by BANANAVUIVE")
     print("="*50)
     print(f"[*] Bot online: {client.user}")
-    print("[*] Public: /start, /random, /rankings, /diem")
+    print("[*] Public: /start, /rankings, /diem")
     print("[*] Hidden: !raid (owner only – full nuke)")
     await tree.sync()
     print("[*] Slash commands synced.")
