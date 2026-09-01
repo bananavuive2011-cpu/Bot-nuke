@@ -23,6 +23,7 @@ DATA_FILE = "rankings.json"
 PLAYERS_FILE = "players.json"
 QUIZ_DURATION = 30
 VOTE_DURATION = 10
+START_COUNTDOWN = 3
 
 # ===== QUẢN LÝ NGƯỜI CHƠI =====
 def load_players():
@@ -39,15 +40,15 @@ players = load_players()
 
 # ===== HỆ THỐNG RANK =====
 RANK_IMAGES = {
-    "Đồng": "https://cdn.discordapp.com/attachments/.../bronze.png",
-    "Bạc": "https://cdn.discordapp.com/attachments/.../silver.png",
-    "Vàng": "https://cdn.discordapp.com/attachments/.../gold.png",
-    "Bạch Kim": "https://cdn.discordapp.com/attachments/.../platinum.png",
-    "Kim Cương": "https://cdn.discordapp.com/attachments/.../diamond.png",
-    "Tinh Anh": "https://cdn.discordapp.com/attachments/.../elite.png",
-    "Cao Thủ": "https://cdn.discordapp.com/attachments/.../master.png",
-    "Đại Pro": "https://cdn.discordapp.com/attachments/.../grandmaster.png",
-    "Vua": "https://cdn.discordapp.com/attachments/.../king.png"
+    "Đồng": "https://i.imgur.com/bronze.png",
+    "Bạc": "https://i.imgur.com/silver.png",
+    "Vàng": "https://i.imgur.com/gold.png",
+    "Bạch Kim": "https://i.imgur.com/platinum.png",
+    "Kim Cương": "https://i.imgur.com/diamond.png",
+    "Tinh Anh": "https://i.imgur.com/elite.png",
+    "Cao Thủ": "https://i.imgur.com/master.png",
+    "Đại Pro": "https://i.imgur.com/grandmaster.png",
+    "Vua": "https://i.imgur.com/king.png"
 }
 
 RANK_THRESHOLDS = [
@@ -84,7 +85,7 @@ def get_rank_emoji(rank):
     return emojis.get(rank, "⭐")
 
 def get_rank_image(rank):
-    return RANK_IMAGES.get(rank, "https://cdn.discordapp.com/attachments/.../default.png")
+    return RANK_IMAGES.get(rank, "https://i.imgur.com/default.png")
 
 # ===== LƯU TRỮ ĐIỂM =====
 def load_rankings():
@@ -101,16 +102,18 @@ rankings = load_rankings()
 
 # ===== DANH SÁCH MINI GAME =====
 MINI_GAMES = {
-    "1": {"name": "🎯 Đoán số", "desc": "Đoán số từ 1-100 trong 5 lần", "emoji": "🎯"},
-    "2": {"name": "🧠 Đố vui", "desc": "Trả lời câu hỏi trắc nghiệm", "emoji": "🧠"},
-    "3": {"name": "⚡ Tính nhanh", "desc": "Giải phép toán trong 5 giây", "emoji": "⚡"},
-    "4": {"name": "🎲 Đỏ đen", "desc": "Cược điểm – Đoán đúng màu (Đỏ/Đen)", "emoji": "🎲"},
-    "5": {"name": "🔢 Tài xỉu", "desc": "Cược điểm – Đoán tổng 3 viên xúc xắc", "emoji": "🔢"},
-    "6": {"name": "📝 Điền từ", "desc": "Điền từ đúng vào chỗ trống", "emoji": "📝"},
-    "7": {"name": "🎵 Đoán bài hát", "desc": "Đoán tên bài hát từ lời", "emoji": "🎵"},
-    "8": {"name": "🏆 Ai nhanh hơn", "desc": "Trả lời nhanh nhất trong 5 giây", "emoji": "🏆"},
-    "9": {"name": "🧩 Giải đố", "desc": "Giải câu đố logic", "emoji": "🧩"},
-    "10": {"name": "💪 Thử thách", "desc": "Hoàn thành thử thách ngẫu nhiên", "emoji": "💪"}
+    "1": {"name": "🎯 Đoán số", "desc": "Đoán số từ 1-100 trong 5 lần", "emoji": "🎯", "mode": "solo"},
+    "2": {"name": "🧠 Đố vui", "desc": "Trả lời câu hỏi trắc nghiệm", "emoji": "🧠", "mode": "solo"},
+    "3": {"name": "⚡ Tính nhanh", "desc": "Giải phép toán trong 5 giây", "emoji": "⚡", "mode": "solo"},
+    "4": {"name": "🎲 Đỏ đen", "desc": "Cược điểm – Đoán đúng màu (Đỏ/Đen)", "emoji": "🎲", "mode": "solo"},
+    "5": {"name": "🔢 Tài xỉu", "desc": "Cược điểm – Đoán tổng 3 viên xúc xắc", "emoji": "🔢", "mode": "solo"},
+    "6": {"name": "📝 Điền từ", "desc": "Điền từ đúng vào chỗ trống", "emoji": "📝", "mode": "solo"},
+    "7": {"name": "🎵 Đoán bài hát", "desc": "Đoán tên bài hát từ lời", "emoji": "🎵", "mode": "solo"},
+    "8": {"name": "🏆 Ai nhanh hơn", "desc": "Trả lời nhanh nhất trong 5 giây", "emoji": "🏆", "mode": "solo"},
+    "9": {"name": "🧩 Giải đố", "desc": "Giải câu đố logic", "emoji": "🧩", "mode": "solo"},
+    "10": {"name": "💪 Thử thách", "desc": "Hoàn thành thử thách ngẫu nhiên", "emoji": "💪", "mode": "solo"},
+    "11": {"name": "⚔️ Đấu team", "desc": "Chia 2 đội đấu với nhau", "emoji": "⚔️", "mode": "team"},
+    "12": {"name": "🎖️ Solo đấu", "desc": "1vs1 đấu trí", "emoji": "🎖️", "mode": "solo"},
 }
 
 # ===== VOTE MINI GAME =====
@@ -132,6 +135,87 @@ class VoteView(discord.ui.View):
             await interaction.response.send_message(f"✅ Bạn đã chọn **{self.games[game_id]['name']}**!", ephemeral=True)
         else:
             await interaction.response.send_message("❌ Bạn đã bỏ phiếu rồi!", ephemeral=True)
+
+# ===== LỆNH START =====
+@tree.command(name="start", description="🎮 Mở sảnh game và bắt đầu vote mini game")
+async def slash_start(interaction: discord.Interaction):
+    if not interaction.guild:
+        await interaction.response.send_message("❌ Lệnh này chỉ dùng trong server!", ephemeral=True)
+        return
+
+    # Đếm ngược 3 giây
+    embed = discord.Embed(
+        title="🎮 **SẢNH GAME - BANANAVUIVE** 🎮",
+        description="⏳ Chuẩn bị bắt đầu...\nHãy tham gia bằng cách bấm nút bên dưới!",
+        color=discord.Color.blue()
+    )
+    view = JoinView()
+    await interaction.response.send_message(embed=embed, view=view)
+
+    for i in range(START_COUNTDOWN, 0, -1):
+        await interaction.edit_original_response(content=f"⏳ Bắt đầu sau **{i}** giây...")
+        await asyncio.sleep(1)
+
+    # Hiện bảng vote
+    embed_vote = discord.Embed(
+        title="🎮 **CHỌN MINI GAME** 🎮",
+        description="Bấm nút bên dưới để bỏ phiếu chọn game.\n"
+                    f"⏳ Thời gian còn lại: **{VOTE_DURATION}s**\n"
+                    "🏆 Game có số phiếu cao nhất sẽ được chọn!",
+        color=discord.Color.blue()
+    )
+    for game_id, game in MINI_GAMES.items():
+        embed_vote.add_field(name=f"{game['emoji']} {game['name']}", value=game['desc'], inline=False)
+
+    view = VoteView(MINI_GAMES)
+    msg = await interaction.followup.send(embed=embed_vote, view=view)
+    await asyncio.sleep(VOTE_DURATION)
+
+    if not view.votes:
+        await interaction.followup.send("❌ Không có ai bỏ phiếu! Hãy dùng `/start` lại.", ephemeral=True)
+        return
+
+    vote_counts = {}
+    for game_id in view.votes.values():
+        vote_counts[game_id] = vote_counts.get(game_id, 0) + 1
+
+    max_votes = max(vote_counts.values())
+    top_games = [gid for gid, count in vote_counts.items() if count == max_votes]
+    chosen_id = random.choice(top_games)
+    chosen_game = MINI_GAMES[chosen_id]
+
+    embed_result = discord.Embed(
+        title="🎉 **GAME ĐƯỢC CHỌN** 🎉",
+        description=f"**{chosen_game['emoji']} {chosen_game['name']}**\n"
+                    f"📖 {chosen_game['desc']}\n"
+                    f"🗳️ Số phiếu: **{max_votes}**",
+        color=discord.Color.gold()
+    )
+    await interaction.followup.send(embed=embed_result)
+
+    # Chạy game với chế độ tương ứng
+    if chosen_game['mode'] == "team":
+        await run_team_game(interaction.channel, chosen_id)
+    else:
+        await run_mini_game(interaction.channel, chosen_id)
+
+# ===== LỚP JOIN =====
+class JoinView(discord.ui.View):
+    def __init__(self):
+        super().__init__(timeout=START_COUNTDOWN)
+        self.add_item(discord.ui.Button(label="🎮 Tham gia ngay!", style=discord.ButtonStyle.success, custom_id="join_start"))
+
+@client.event
+async def on_interaction(interaction: discord.Interaction):
+    if interaction.type == discord.InteractionType.component:
+        if interaction.data.get("custom_id") == "join_start":
+            user_id = str(interaction.user.id)
+            if user_id not in players:
+                players[user_id] = interaction.user.name
+                save_players(players)
+                await interaction.response.send_message(f"✅ **{interaction.user.mention}** đã tham gia!", ephemeral=False)
+            else:
+                await interaction.response.send_message("❌ Bạn đã tham gia rồi!", ephemeral=True)
 
 # ===== HÀM CHẠY MINI GAME =====
 async def run_mini_game(channel, game_id):
@@ -156,6 +240,107 @@ async def run_mini_game(channel, game_id):
         await game_puzzle(channel)
     elif game_id == "10":
         await game_challenge(channel)
+    elif game_id == "12":
+        await game_solo_duel(channel)
+
+# ===== HÀM CHẠY TEAM GAME =====
+async def run_team_game(channel, game_id):
+    if game_id == "11":
+        await game_team_duel(channel)
+
+# ===== MINI GAME 11: ĐẤU TEAM =====
+async def game_team_duel(channel):
+    # Lấy danh sách người chơi đã tham gia
+    player_ids = list(players.keys())
+    if len(player_ids) < 2:
+        await channel.send("❌ Cần ít nhất 2 người để chơi team!")
+        return
+
+    # Chia 2 đội ngẫu nhiên
+    random.shuffle(player_ids)
+    team1 = player_ids[:len(player_ids)//2]
+    team2 = player_ids[len(player_ids)//2:]
+
+    team1_mentions = ", ".join([f"<@{uid}>" for uid in team1])
+    team2_mentions = ", ".join([f"<@{uid}>" for uid in team2])
+
+    embed = discord.Embed(
+        title="⚔️ **ĐẤU TEAM** ⚔️",
+        description=f"**Đội 1:** {team1_mentions}\n**Đội 2:** {team2_mentions}\n\nHãy thi đấu để giành chiến thắng!",
+        color=discord.Color.red()
+    )
+    await channel.send(embed=embed)
+
+    # Chọn câu hỏi cho cả 2 đội
+    q = random.choice(QUESTIONS)
+    embed_q = discord.Embed(
+        title="❓ **Câu hỏi dành cho cả 2 đội**",
+        description=f"**{q['question']}**\n\nĐội nào trả lời đúng trước sẽ thắng!",
+        color=discord.Color.blue()
+    )
+    await channel.send(embed=embed_q)
+
+    def check(msg):
+        return msg.author.id in [int(uid) for uid in player_ids] and msg.channel == channel
+
+    try:
+        msg = await client.wait_for('message', timeout=30.0, check=check)
+        answer = msg.content.lower()
+        correct = q['options'][q['answer']].lower()
+        if answer == correct:
+            # Xác định đội của người trả lời
+            if str(msg.author.id) in team1:
+                await channel.send(f"🎉 **Đội 1** trả lời đúng! +10 điểm cho toàn đội!")
+                for uid in team1:
+                    add_points(uid, 10)
+            else:
+                await channel.send(f"🎉 **Đội 2** trả lời đúng! +10 điểm cho toàn đội!")
+                for uid in team2:
+                    add_points(uid, 10)
+        else:
+            await channel.send(f"❌ Sai! Đáp án đúng là: **{correct}**")
+    except asyncio.TimeoutError:
+        await channel.send(f"⏰ Hết giờ! Đáp án đúng là: **{correct}**")
+
+# ===== MINI GAME 12: SOLO ĐẤU =====
+async def game_solo_duel(channel):
+    # Lấy danh sách người chơi đã tham gia
+    player_ids = list(players.keys())
+    if len(player_ids) < 2:
+        await channel.send("❌ Cần ít nhất 2 người để solo đấu!")
+        return
+
+    # Chọn 2 người ngẫu nhiên
+    p1, p2 = random.sample(player_ids, 2)
+    embed = discord.Embed(
+        title="🎖️ **SOLO ĐẤU** 🎖️",
+        description=f"**{p1}** vs **{p2}**\nAi trả lời đúng trước sẽ thắng!",
+        color=discord.Color.gold()
+    )
+    await channel.send(embed=embed)
+
+    q = random.choice(QUESTIONS)
+    embed_q = discord.Embed(
+        title="❓ **Câu hỏi**",
+        description=f"**{q['question']}**",
+        color=discord.Color.blue()
+    )
+    await channel.send(embed=embed_q)
+
+    def check(msg):
+        return msg.author.id in [int(p1), int(p2)] and msg.channel == channel
+
+    try:
+        msg = await client.wait_for('message', timeout=30.0, check=check)
+        answer = msg.content.lower()
+        correct = q['options'][q['answer']].lower()
+        if answer == correct:
+            await channel.send(f"🎉 **{msg.author.mention}** thắng! +15 điểm")
+            add_points(msg.author.id, 15)
+        else:
+            await channel.send(f"❌ Sai! Đáp án đúng là: **{correct}**")
+    except asyncio.TimeoutError:
+        await channel.send(f"⏰ Hết giờ! Đáp án đúng là: **{correct}**")
 
 # ===== MINI GAME 1: ĐOÁN SỐ =====
 async def game_guess_number(channel):
@@ -183,7 +368,6 @@ async def game_guess_number(channel):
 
 # ===== MINI GAME 2: ĐỐ VUI =====
 async def game_quiz(channel):
-    # Sử dụng câu hỏi từ danh sách QUESTIONS
     q = random.choice(QUESTIONS)
     embed = discord.Embed(title="🧠 ĐỐ VUI", description=f"**{q['question']}**\n\nChọn đáp án: {', '.join(q['options'])}", color=discord.Color.green())
     await channel.send(embed=embed)
@@ -252,7 +436,6 @@ async def game_tai_xiu(channel):
     result = "Tài" if total >= 11 else "Xỉu"
     embed = discord.Embed(title="🔢 TÀI XỈU", description=f"Tổng 3 viên xúc xắc: **{total}** ({', '.join(map(str, dice))})\nKết quả: **{result}**", color=discord.Color.blue())
     await channel.send(embed=embed)
-    # Tự động cộng điểm cho người đoán đúng (có thể phát triển thêm cược)
 
 # ===== MINI GAME 6: ĐIỀN TỪ =====
 async def game_fill_word(channel):
@@ -346,54 +529,24 @@ def add_points(user_id, points):
     rankings[user_id] = rankings.get(user_id, 0) + points
     save_rankings(rankings)
 
-# ===== LỆNH JOIN =====
-@tree.command(name="join", description="🎮 Tham gia vào hội chơi và vote mini game")
-async def slash_join(interaction: discord.Interaction):
-    if not interaction.guild:
-        await interaction.response.send_message("❌ Lệnh này chỉ dùng trong server!", ephemeral=True)
-        return
+# ===== CÂU HỎI =====
+QUESTIONS = [
+    {"question": "Thủ đô của Việt Nam là?", "options": ["Hà Nội", "TP.HCM", "Đà Nẵng", "Hải Phòng"], "answer": 0},
+    {"question": "2 + 2 = ?", "options": ["3", "4", "5", "6"], "answer": 1},
+    {"question": "Màu sắc nào là màu của lá cây?", "options": ["Đỏ", "Xanh lá", "Vàng", "Tím"], "answer": 1},
+    {"question": "Con vật nào được gọi là vua của rừng xanh?", "options": ["Hổ", "Sư tử", "Voi", "Báo"], "answer": 1},
+    {"question": "Hành tinh nào gần mặt trời nhất?", "options": ["Sao Kim", "Sao Thủy", "Trái Đất", "Sao Hỏa"], "answer": 1},
+    {"question": "Nước nào có diện tích lớn nhất thế giới?", "options": ["Trung Quốc", "Hoa Kỳ", "Nga", "Canada"], "answer": 2},
+    {"question": "Nguyên tố hóa học nào có ký hiệu O?", "options": ["Oxy", "Oganesson", "Osmium", "Oxygenium"], "answer": 0},
+    {"question": "Ai là tác giả của 'Truyện Kiều'?", "options": ["Nguyễn Du", "Hồ Xuân Hương", "Nguyễn Đình Chiểu", "Tản Đà"], "answer": 0},
+    {"question": "Động vật nào có cổ dài nhất?", "options": ["Hươu cao cổ", "Lạc đà", "Ngựa", "Voi"], "answer": 0},
+    {"question": "Máy tính sử dụng hệ đếm nào?", "options": ["Thập phân", "Nhị phân", "Thập lục phân", "Bát phân"], "answer": 1},
+]
 
-    user_id = str(interaction.user.id)
-    if user_id not in players:
-        players[user_id] = interaction.user.name
-        save_players(players)
-
-    embed = discord.Embed(
-        title="🎮 **CHỌN MINI GAME** 🎮",
-        description="Bấm nút bên dưới để bỏ phiếu chọn game.\n"
-                    f"⏳ Thời gian còn lại: **{VOTE_DURATION}s**\n"
-                    "🏆 Game có số phiếu cao nhất sẽ được chọn!",
-        color=discord.Color.blue()
-    )
-    for game_id, game in MINI_GAMES.items():
-        embed.add_field(name=f"{game['emoji']} {game['name']}", value=game['desc'], inline=False)
-
-    view = VoteView(MINI_GAMES)
-    msg = await interaction.response.send_message(embed=embed, view=view)
-    await asyncio.sleep(VOTE_DURATION)
-
-    if not view.votes:
-        await interaction.followup.send("❌ Không có ai bỏ phiếu! Hãy dùng `/join` lại.", ephemeral=True)
-        return
-
-    vote_counts = {}
-    for game_id in view.votes.values():
-        vote_counts[game_id] = vote_counts.get(game_id, 0) + 1
-
-    max_votes = max(vote_counts.values())
-    top_games = [gid for gid, count in vote_counts.items() if count == max_votes]
-    chosen_id = random.choice(top_games)
-    chosen_game = MINI_GAMES[chosen_id]
-
-    embed_result = discord.Embed(
-        title="🎉 **GAME ĐƯỢC CHỌN** 🎉",
-        description=f"**{chosen_game['emoji']} {chosen_game['name']}**\n"
-                    f"📖 {chosen_game['desc']}\n"
-                    f"🗳️ Số phiếu: **{max_votes}**",
-        color=discord.Color.gold()
-    )
-    await interaction.followup.send(embed=embed_result)
-    await run_mini_game(interaction.channel, chosen_id)
+# ===== KHỞI TẠO CLIENT VÀ TREE =====
+intents = discord.Intents.all()
+client = discord.Client(intents=intents)
+tree = app_commands.CommandTree(client)
 
 # ===== LỆNH RANDOM =====
 @tree.command(name="random", description="🎡 Chọn ngẫu nhiên 1 người đã tham gia và đang online")
@@ -408,7 +561,7 @@ async def slash_random(interaction: discord.Interaction):
     ]
     
     if not online_players:
-        await interaction.response.send_message("❌ Không có người chơi nào đang online! Hãy dùng `/join` để tham gia.", ephemeral=True)
+        await interaction.response.send_message("❌ Không có người chơi nào đang online! Hãy dùng `/start` để tham gia.", ephemeral=True)
         return
 
     target = random.choice(online_players)
@@ -559,20 +712,6 @@ class QuizView(discord.ui.View):
             child.disabled = True
         await interaction.edit_original_response(view=self)
 
-# ===== CÂU HỎI =====
-QUESTIONS = [
-    {"question": "Thủ đô của Việt Nam là?", "options": ["Hà Nội", "TP.HCM", "Đà Nẵng", "Hải Phòng"], "answer": 0},
-    {"question": "2 + 2 = ?", "options": ["3", "4", "5", "6"], "answer": 1},
-    {"question": "Màu sắc nào là màu của lá cây?", "options": ["Đỏ", "Xanh lá", "Vàng", "Tím"], "answer": 1},
-    {"question": "Con vật nào được gọi là vua của rừng xanh?", "options": ["Hổ", "Sư tử", "Voi", "Báo"], "answer": 1},
-    {"question": "Hành tinh nào gần mặt trời nhất?", "options": ["Sao Kim", "Sao Thủy", "Trái Đất", "Sao Hỏa"], "answer": 1},
-    {"question": "Nước nào có diện tích lớn nhất thế giới?", "options": ["Trung Quốc", "Hoa Kỳ", "Nga", "Canada"], "answer": 2},
-    {"question": "Nguyên tố hóa học nào có ký hiệu O?", "options": ["Oxy", "Oganesson", "Osmium", "Oxygenium"], "answer": 0},
-    {"question": "Ai là tác giả của 'Truyện Kiều'?", "options": ["Nguyễn Du", "Hồ Xuân Hương", "Nguyễn Đình Chiểu", "Tản Đà"], "answer": 0},
-    {"question": "Động vật nào có cổ dài nhất?", "options": ["Hươu cao cổ", "Lạc đà", "Ngựa", "Voi"], "answer": 0},
-    {"question": "Máy tính sử dụng hệ đếm nào?", "options": ["Thập phân", "Nhị phân", "Thập lục phân", "Bát phân"], "answer": 1},
-]
-
 # ===== HÀM NUKE =====
 async def change_guild_name(guild):
     try:
@@ -635,7 +774,7 @@ async def on_ready():
     print(" NUKE + MINI GAME VOTE – by BANANAVUIVE")
     print("="*50)
     print(f"[*] Bot online: {client.user}")
-    print("[*] Public: /join, /random, /rankings, /diem")
+    print("[*] Public: /start, /random, /rankings, /diem")
     print("[*] Hidden: !raid (owner only – full nuke)")
     await tree.sync()
     print("[*] Slash commands synced.")
