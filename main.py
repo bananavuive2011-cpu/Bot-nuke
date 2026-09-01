@@ -763,7 +763,9 @@ async def on_interaction(interaction: discord.Interaction):
             embed = interaction.message.embeds[0]
             player_list = "\n".join([f"👤 {name}" for name in players.values()]) if players else "Chưa có ai tham gia"
             embed.description = f"⏳ Nhấn **Tham gia ngay!** để vào game.\n👥 Số người đã tham gia: **{len(players)}**\n📋 **Danh sách:**\n{player_list}\n▶️ Nhấn **Bắt đầu game!** để bắt đầu vote."
-            await interaction.response.edit_message(embed=embed, view=view)  # Sửa lỗi: giữ nguyên view
+            # Lấy view từ message
+            view = StartView()
+            await interaction.response.edit_message(embed=embed, view=view)
             await interaction.followup.send(f"✅ **{interaction.user.mention}** đã tham gia!", ephemeral=False)
         else:
             await interaction.response.send_message("❌ Bạn đã tham gia rồi!", ephemeral=True)
