@@ -38,7 +38,7 @@ def save_players(data):
 
 players = load_players()
 
-# ===== HỆ THỐNG RANK MỚI =====
+# ===== HỆ THỐNG RANK =====
 RANK_IMAGES = {
     "Đồng": "https://i.imgur.com/bronze.png",
     "Bạc": "https://i.imgur.com/silver.png",
@@ -122,8 +122,8 @@ GAME_INSTRUCTIONS = {
     "1": "🎯 **ĐOÁN SỐ**\nĐoán một số từ 1 đến 100. Bạn có 5 lần thử. Mỗi lần đoán đúng được +10 điểm.",
     "2": "🧠 **ĐỐ VUI**\nTrả lời câu hỏi trắc nghiệm. Chọn đáp án đúng để nhận +10 điểm.",
     "3": "⚡ **TÍNH NHANH**\nGiải phép toán trong 5 giây. Trả lời đúng +10 điểm.",
-    "4": "🎲 **ĐỎ ĐEN**\nChọn Đỏ hoặc Đen, cược 10 điểm. Đúng +20, sai -10.",
-    "5": "🎲 **TÀI XỈU**\nĐoán số xúc xắc (1-6) và cược điểm. Đúng nhận điểm từ người thua.",
+    "4": "🎲 **ĐỎ ĐEN**\nChọn Đỏ hoặc Đen, cược tối thiểu 10 điểm. Đúng +20, sai -10.",
+    "5": "🎲 **TÀI XỈU**\nĐoán số xúc xắc (1-6) và cược tối thiểu 10 điểm. Đúng nhận điểm từ người thua.",
     "6": "📝 **ĐIỀN TỪ**\nĐiền từ đúng vào chỗ trống. Đúng +10 điểm.",
     "7": "🎵 **ĐOÁN BÀI HÁT**\nĐoán tên bài hát từ gợi ý. Đúng +10 điểm.",
     "8": "🏆 **AI NHANH HƠN**\nAi trả lời 'tôi' nhanh nhất sẽ thắng +10 điểm.",
@@ -131,7 +131,7 @@ GAME_INSTRUCTIONS = {
     "10": "💪 **THỬ THÁCH**\nHoàn thành thử thách ngẫu nhiên để nhận +10 điểm.",
     "11": "⚔️ **ĐẤU TEAM**\nChia 2 đội, đội nào trả lời đúng trước sẽ thắng.",
     "12": "🎖️ **SOLO ĐẤU**\n1vs1, ai trả lời đúng trước sẽ thắng +15 điểm.",
-    "13": "🏎️ **ĐUA XE**\nChọn màu xe và cược điểm. Xe nào về đích trước sẽ thắng."
+    "13": "🏎️ **ĐUA XE**\nChọn màu xe và cược tối thiểu 10 điểm. Xe nào về đích trước sẽ thắng."
 }
 
 # ===== VOTE MINI GAME =====
@@ -164,7 +164,6 @@ class StartView(discord.ui.View):
 # ===== HÀM CHẠY MINI GAME =====
 async def run_mini_game(channel, game_id):
     game = MINI_GAMES[game_id]
-    # Gửi hướng dẫn trước khi chơi
     if game_id in GAME_INSTRUCTIONS:
         await channel.send(GAME_INSTRUCTIONS[game_id])
     
@@ -266,7 +265,7 @@ async def game_math_fast(channel):
 async def game_red_black(channel):
     colors = ["Đỏ", "Đen"]
     result = random.choice(colors)
-    embed = discord.Embed(title="🎲 ĐỎ ĐEN", description="Chọn **Đỏ** hoặc **Đen**. Cược 10 điểm!\nNếu đúng bạn nhận +20 điểm, sai mất 10 điểm.", color=discord.Color.red())
+    embed = discord.Embed(title="🎲 ĐỎ ĐEN", description="Chọn **Đỏ** hoặc **Đen**. Cược tối thiểu 10 điểm!\nNếu đúng bạn nhận +20 điểm, sai mất 10 điểm.", color=discord.Color.red())
     await channel.send(embed=embed)
     def check(msg):
         return msg.author != client.user and msg.channel == channel and msg.content.lower() in ['đỏ', 'đen']
@@ -285,8 +284,12 @@ async def game_red_black(channel):
     except asyncio.TimeoutError:
         await channel.send(f"⏰ Hết giờ!")
 
-# ===== MINI GAME 5: TÀI XỈU (ĐOÁN ĐIỂM XÚC XẮC) =====
+# ===== MINI GAME 5: TÀI XỈU =====
+ready_users = set()
+
 async def game_tai_xiu(channel):
+    global ready_users
+    ready_users = set()
     player_ids = list(players.keys())
     if len(player_ids) < 2:
         await channel.send("❌ Cần ít nhất 2 người để chơi!")
@@ -299,19 +302,19 @@ async def game_tai_xiu(channel):
                     "2️⃣ Bot sẽ tung xúc xắc (1-6).\n"
                     "3️⃣ Bạn có **10 giây** để dự đoán số điểm.\n"
                     "4️⃣ Nhập: `số_dự_đoán số_điểm_cược` (ví dụ: `5 50`).\n"
-                    "5️⃣ Nếu đúng → nhận điểm, sai → mất điểm.",
+                    "5️⃣ Cược tối thiểu **10 điểm**.\n"
+                    "6️⃣ Nếu đúng → nhận điểm, sai → mất điểm.",
         color=discord.Color.blue()
     )
     await channel.send(embed=embed)
 
-    ready_users = set()
     class ReadyView(discord.ui.View):
         def __init__(self):
             super().__init__(timeout=30)
             self.add_item(discord.ui.Button(label="✅ SẴN SÀNG", style=discord.ButtonStyle.success, custom_id="ready_tai_xiu"))
 
     view = ReadyView()
-    msg = await channel.send("⏳ Bấm **SẴN SÀNG** để tham gia!", view=view)
+    await channel.send("⏳ Bấm **SẴN SÀNG** để tham gia!", view=view)
     await asyncio.sleep(30)
 
     if len(ready_users) < 2:
@@ -592,7 +595,8 @@ async def game_race(channel):
         description="📖 **HƯỚNG DẪN**\n"
                     "1️⃣ Chọn màu xe và nhập số điểm cược.\n"
                     "2️⃣ Ví dụ: `Đỏ 50` hoặc `Xanh 20`.\n"
-                    "3️⃣ Xe sẽ chạy và về đích – ai chọn đúng màu sẽ thắng!\n"
+                    "3️⃣ Cược tối thiểu **10 điểm**.\n"
+                    "4️⃣ Xe sẽ chạy và về đích – ai chọn đúng màu sẽ thắng!\n"
                     f"🎨 Các màu: {', '.join(colors)}",
         color=discord.Color.blue()
     )
@@ -644,7 +648,6 @@ async def game_race(channel):
         await channel.send("❌ Không có ai đặt cược! Hủy game.")
         return
 
-    # Animation đua xe
     race_msg = await channel.send("🏎️ **ĐUA XE BẮT ĐẦU!**")
     winner_color = random.choice(colors)
     
@@ -732,7 +735,7 @@ async def slash_start(interaction: discord.Interaction):
     embed = discord.Embed(
         title="🎮 **SẢNH GAME - BANANAVUIVE** 🎮",
         description="⏳ Nhấn **Tham gia ngay!** để vào game.\n"
-                    "👥 Số người đã tham gia: **0**\n"
+                    f"👥 Số người đã tham gia: **{len(players)}**\n"
                     "▶️ Nhấn **Bắt đầu game!** để bắt đầu vote.",
         color=discord.Color.blue()
     )
@@ -816,6 +819,7 @@ async def on_interaction(interaction: discord.Interaction):
             await run_mini_game(interaction.channel, chosen_id)
 
     elif custom_id == "ready_tai_xiu":
+        global ready_users
         user_id = str(interaction.user.id)
         if user_id in players:
             ready_users.add(user_id)
