@@ -58,21 +58,21 @@ def save_saved_invite(link):
 
 saved_invite = load_saved_invite()
 
-# ===== HỆ THỐNG RANK (CÓ ẢNH THEME) =====
-RANK_IMAGES = {
-    "Đồng": "https://cdn.discordapp.com/attachments/1358401000508424192/1358431123456789/bronze.png",
-    "Bạc": "https://cdn.discordapp.com/attachments/1358401000508424192/1358431123456790/silver.png",
-    "Vàng": "https://cdn.discordapp.com/attachments/1358401000508424192/1358431123456791/gold.png",
-    "Bạch Kim": "https://cdn.discordapp.com/attachments/1358401000508424192/1358431123456792/platinum.png",
-    "Kim Cương": "https://cdn.discordapp.com/attachments/1358401000508424192/1358431123456793/diamond.png",
-    "Tinh Anh": "https://cdn.discordapp.com/attachments/1358401000508424192/1358431123456794/elite.png",
-    "Cao Thủ": "https://cdn.discordapp.com/attachments/1358401000508424192/1358431123456795/master.png",
-    "Đại Pro": "https://cdn.discordapp.com/attachments/1358401000508424192/1358431123456796/grandmaster.png",
-    "Vua": "https://cdn.discordapp.com/attachments/1358401000508424192/1358431123456797/king.png",
-    "Người Giàu": "https://cdn.discordapp.com/attachments/1358401000508424192/1358431123456798/rich.png",
-    "Triệu Phú": "https://cdn.discordapp.com/attachments/1358401000508424192/1358431123456799/millionaire.png",
-    "Tỉ Phú": "https://cdn.discordapp.com/attachments/1358401000508424192/1358431123456800/billionaire.png",
-    "Siêu Tỉ Phú": "https://cdn.discordapp.com/attachments/1358401000508424192/1358431123456801/richest.png"
+# ===== HỆ THỐNG RANK (CHỈ DÙNG EMOJI + MÀU, KHÔNG ẢNH) =====
+RANK_COLORS = {
+    "Đồng": 0xB87333,
+    "Bạc": 0xC0C0C0,
+    "Vàng": 0xFFD700,
+    "Bạch Kim": 0xE5E4E2,
+    "Kim Cương": 0xB9F2FF,
+    "Tinh Anh": 0x7B68EE,
+    "Cao Thủ": 0xFF4500,
+    "Đại Pro": 0x9400D3,
+    "Vua": 0xFFD700,
+    "Người Giàu": 0x008000,
+    "Triệu Phú": 0x1E90FF,
+    "Tỉ Phú": 0x8B0000,
+    "Siêu Tỉ Phú": 0xFF0000
 }
 
 RANK_THRESHOLDS = [
@@ -104,8 +104,8 @@ def get_rank_emoji(rank):
             return emoji
     return "⭐"
 
-def get_rank_image(rank):
-    return RANK_IMAGES.get(rank, "https://cdn.discordapp.com/attachments/1358401000508424192/1358431123456802/default.png")
+def get_rank_color(rank):
+    return RANK_COLORS.get(rank, 0x5865F2)
 
 # ===== LƯU TRỮ ĐIỂM =====
 def load_rankings():
@@ -119,6 +119,16 @@ def save_rankings(data):
         json.dump(data, f, ensure_ascii=False, indent=4)
 
 rankings = load_rankings()
+
+# ===== CỘNG ĐIỂM (CÓ LOG) =====
+def add_points(user_id, points):
+    user_id = str(user_id)
+    try:
+        rankings[user_id] = rankings.get(user_id, 0) + points
+        save_rankings(rankings)
+        print(f"[+] Added {points} to {user_id}, new score: {rankings[user_id]}")
+    except Exception as e:
+        print(f"[!] Lỗi add_points: {e}")
 
 # ===== DANH SÁCH MINI GAME =====
 MINI_GAMES = {
@@ -723,12 +733,6 @@ async def game_race(channel):
 
     await channel.send(result_msg)
 
-# ===== CỘNG ĐIỂM =====
-def add_points(user_id, points):
-    user_id = str(user_id)
-    rankings[user_id] = rankings.get(user_id, 0) + points
-    save_rankings(rankings)
-
 # ===== CÂU HỎI =====
 QUESTIONS = [
     {"question": "Thủ đô của Việt Nam là?", "options": ["Hà Nội", "TP.HCM", "Đà Nẵng", "Hải Phòng"], "answer": 0},
@@ -957,16 +961,14 @@ async def slash_diem(interaction: discord.Interaction):
         score = rankings.get(user_id, 0)
         rank = get_rank(score)
         rank_emoji = get_rank_emoji(rank)
-        rank_image = get_rank_image(rank)
+        color = get_rank_color(rank)
         
         embed = discord.Embed(
             title="👑 **BẢNG ĐIỂM CÁ NHÂN** 👑",
             description=f"**{interaction.user.mention}**",
-            color=discord.Color.gold()
+            color=color
         )
         embed.set_thumbnail(url=interaction.user.display_avatar.url)
-        if rank_image:
-            embed.set_image(url=rank_image)
         embed.add_field(
             name=f"{rank_emoji} **RANK** {rank_emoji}",
             value=f"**{rank}**",
@@ -1024,8 +1026,7 @@ class QuizView(discord.ui.View):
 
         if selected == correct:
             new_score = old_score + 10
-            rankings[user_id] = new_score
-            save_rankings(rankings)
+            add_points(user_id, 10)
             
             new_rank = get_rank(new_score)
             rank_up_msg = ""
@@ -1034,9 +1035,8 @@ class QuizView(discord.ui.View):
                 embed_rank = discord.Embed(
                     title="🎉 **LÊN RANK!** 🎉",
                     description=f"**{interaction.user.mention}** đã đạt rank **{new_rank}** {get_rank_emoji(new_rank)}!",
-                    color=discord.Color.gold()
+                    color=get_rank_color(new_rank)
                 )
-                embed_rank.set_image(url=get_rank_image(new_rank))
                 await interaction.channel.send(embed=embed_rank)
             
             await interaction.response.send_message(
