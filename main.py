@@ -145,6 +145,7 @@ MINI_GAMES = {
     "11": {"name": "⚔️ Đấu team", "desc": "Chia 2 đội đấu với nhau", "emoji": "⚔️", "mode": "team"},
     "12": {"name": "🎖️ Solo đấu", "desc": "1vs1 đấu trí", "emoji": "🎖️", "mode": "solo"},
     "13": {"name": "🏎️ Đua xe", "desc": "Cược điểm – Chọn màu xe chiến thắng", "emoji": "🏎️", "mode": "solo"},
+    "14": {"name": "🐺 Ma sói", "desc": "Game nhập vai – phe sói vs dân làng, bot làm quản trò", "emoji": "🐺", "mode": "solo"},
 }
 
 # ===== GAME INSTRUCTIONS =====
@@ -161,8 +162,532 @@ GAME_INSTRUCTIONS = {
     "10": "💪 **THỬ THÁCH**\nHoàn thành thử thách ngẫu nhiên để nhận +10 điểm.",
     "11": "⚔️ **ĐẤU TEAM**\nChia 2 đội, đội nào trả lời đúng trước sẽ thắng.",
     "12": "🎖️ **SOLO ĐẤU**\n1vs1, ai trả lời đúng trước sẽ thắng +15 điểm.",
-    "13": "🏎️ **ĐUA XE**\nChọn màu xe và cược điểm. Xe nào về đích trước sẽ thắng."
+    "13": "🏎️ **ĐUA XE**\nChọn màu xe và cược điểm. Xe nào về đích trước sẽ thắng.",
+    "14": "🐺 **MA SÓI**\nGame nhập vai: phe sói vs dân làng.\nĐiểm thưởng: Dân thắng +30 điểm, Sói thắng +50 điểm.\nVai trò được gửi riêng qua DM.\nCần ít nhất 6 người để bắt đầu."
 }
+
+# ===== CLASS MA SÓI =====
+class WerewolfGame:
+    def __init__(self, channel, player_ids):
+        self.channel = channel
+        self.player_ids = player_ids  # list of user ids (str)
+        self.alive = set(player_ids)
+        self.roles = {}  # user_id -> role
+        self.role_emoji = {
+            "Dân làng": "👤",
+            "Ma sói": "🐺",
+            "Tiên tri": "🔮",
+            "Bảo vệ": "🛡️",
+            "Phù thủy": "🧪",
+            "Thợ săn": "🏹"
+        }
+        self.used_abilities = {
+            "witch_save": False,
+            "witch_kill": False,
+            "guardian_target": None,
+            "guardian_last": None
+        }
+        self.night_actions = {}  # dict user_id -> action
+        self.day_count = 0
+        self.game_over = False
+        self.winner = None
+        self.votes = {}  # user_id -> voted_user_id
+        self.deaths = []  # list of user_ids died
+        self.saved = None  # user_id được cứu
+
+    def assign_roles(self):
+        num = len(self.player_ids)
+        roles = []
+        # Tính số sói
+        num_wolves = max(1, num // 3)
+        # Vai đặc biệt
+        roles.extend(["Ma sói"] * num_wolves)
+        remaining = num - num_wolves
+        
+        if num >= 6:
+            roles.append("Tiên tri")
+            remaining -= 1
+        if num >= 7:
+            roles.append("Bảo vệ")
+            remaining -= 1
+        if num >= 8:
+            roles.append("Phù thủy")
+            remaining -= 1
+        if num >= 9:
+            roles.append("Thợ săn")
+            remaining -= 1
+        
+        # Dân làng còn lại
+        roles.extend(["Dân làng"] * remaining)
+        random.shuffle(roles)
+        
+        for i, user_id in enumerate(self.player_ids):
+            self.roles[user_id] = roles[i]
+        
+        return self.roles
+
+    def get_alive_players(self):
+        return [uid for uid in self.alive]
+
+    def get_alive_names(self, guild):
+        names = []
+        for uid in self.alive:
+            try:
+                member = guild.get_member(int(uid))
+                names.append(member.display_name if member else uid)
+            except:
+                names.append(uid)
+        return names
+
+    def get_player_name(self, uid, guild):
+        try:
+            member = guild.get_member(int(uid))
+            return member.display_name if member else uid
+        except:
+            return uid
+
+    def is_game_over(self):
+        alive_players = self.get_alive_players()
+        wolves = [uid for uid in alive_players if self.roles[uid] == "Ma sói"]
+        villagers = [uid for uid in alive_players if self.roles[uid] != "Ma sói"]
+        
+        if len(wolves) == 0:
+            self.winner = "Dân làng"
+            return True
+        if len(wolves) >= len(villagers):
+            self.winner = "Ma sói"
+            return True
+        return False
+
+    def get_wolf_ids(self):
+        return [uid for uid in self.roles if self.roles[uid] == "Ma sói" and uid in self.alive]
+
+# ===== HÀM CHẠY GAME MA SÓI =====
+async def run_werewolf(channel):
+    global players, rankings
+    
+    # Kiểm tra số người
+    if len(players) < 6:
+        await channel.send("❌ **Cần ít nhất 6 người để chơi Ma sói!** Hiện có {} người.".format(len(players)))
+        return
+    
+    # Tạo game instance
+    player_ids = list(players.keys())
+    game = WerewolfGame(channel, player_ids)
+    game.assign_roles()
+    
+    # Gửi DM vai trò cho từng người
+    await channel.send("🐺 **MA SÓI BẮT ĐẦU!**\nBot đang phân vai... Mỗi người sẽ nhận được DM riêng.")
+    
+    for uid in player_ids:
+        try:
+            user = await channel.guild.fetch_member(int(uid))
+            if user:
+                role = game.roles[uid]
+                emoji = game.role_emoji.get(role, "❓")
+                embed = discord.Embed(
+                    title="🐺 VAI TRÒ CỦA BẠN",
+                    description=f"{emoji} **{role}**",
+                    color=discord.Color.purple()
+                )
+                if role == "Ma sói":
+                    embed.add_field(name="Kỹ năng", value="Mỗi đêm cắn 1 người. Chat riêng với sói khác.", inline=False)
+                elif role == "Tiên tri":
+                    embed.add_field(name="Kỹ năng", value="Mỗi đêm soi 1 người biết vai trò.", inline=False)
+                elif role == "Bảo vệ":
+                    embed.add_field(name="Kỹ năng", value="Mỗi đêm bảo vệ 1 người (không trùng 2 đêm).", inline=False)
+                elif role == "Phù thủy":
+                    embed.add_field(name="Kỹ năng", value="1 lần cứu + 1 lần giết (dùng trong đêm).", inline=False)
+                elif role == "Thợ săn":
+                    embed.add_field(name="Kỹ năng", value="Khi chết được bắn 1 người.", inline=False)
+                else:
+                    embed.add_field(name="Kỹ năng", value="Không có. Thảo luận và vote treo cổ.", inline=False)
+                embed.add_field(name="Điểm thưởng", value="Dân thắng: +30 điểm\nSói thắng: +50 điểm", inline=False)
+                embed.set_footer(text="Đừng tiết lộ vai trò cho người khác!")
+                await user.send(embed=embed)
+        except:
+            pass
+    
+    # Thông báo công khai
+    await channel.send("✅ **Đã gửi vai trò cho tất cả người chơi qua DM.**\nBắt đầu game sau 3 giây...")
+    await asyncio.sleep(3)
+    
+    # Vòng lặp game
+    while not game.game_over:
+        # === PHA ĐÊM ===
+        await channel.send("🌙 **ĐÊM XUỐNG...**\nMọi người đừng nói chuyện. Các vai đặc biệt hãy kiểm tra DM.")
+        
+        # Reset actions
+        game.night_actions = {}
+        game.votes = {}
+        game.deaths = []
+        game.saved = None
+        
+        # 1. Sói chọn nạn nhân
+        wolves = game.get_wolf_ids()
+        wolf_target = None
+        if wolves:
+            # Gửi DM cho từng sói để vote chọn mục tiêu
+            wolf_votes = {}
+            for wid in wolves:
+                try:
+                    user = await channel.guild.fetch_member(int(wid))
+                    if user:
+                        # Tạo view chọn
+                        class WolfView(discord.ui.View):
+                            def __init__(self, alive_players, game, guild):
+                                super().__init__(timeout=20)
+                                self.alive = alive_players
+                                self.game = game
+                                self.guild = guild
+                                self.chosen = None
+                                for uid in alive_players:
+                                    if uid != wid and uid in game.alive:
+                                        name = game.get_player_name(uid, guild)
+                                        btn = discord.ui.Button(label=name, custom_id=f"wolf_{uid}", style=discord.ButtonStyle.danger)
+                                        btn.callback = self.btn_callback
+                                        self.add_item(btn)
+                            async def btn_callback(self, interaction: discord.Interaction):
+                                if interaction.user.id != int(wid):
+                                    await interaction.response.send_message("❌ Không phải lượt của bạn!", ephemeral=True)
+                                    return
+                                self.chosen = interaction.data["custom_id"].split("_")[1]
+                                self.stop()
+                                await interaction.response.send_message(f"✅ Đã chọn **{self.game.get_player_name(self.chosen, self.guild)}**", ephemeral=True)
+                        
+                        view = WolfView([uid for uid in game.alive if uid != wid], game, channel.guild)
+                        await user.send("🐺 **Chọn 1 người để cắn đêm nay:**", view=view)
+                        await view.wait()
+                        if view.chosen:
+                            wolf_votes[wid] = view.chosen
+                except:
+                    pass
+            
+            # Đếm phiếu sói
+            if wolf_votes:
+                vote_count = {}
+                for target in wolf_votes.values():
+                    vote_count[target] = vote_count.get(target, 0) + 1
+                if vote_count:
+                    wolf_target = max(vote_count, key=vote_count.get)
+        
+        # 2. Tiên tri soi
+        seers = [uid for uid in game.alive if game.roles[uid] == "Tiên tri"]
+        seer_target = None
+        if seers:
+            seer = seers[0]
+            try:
+                user = await channel.guild.fetch_member(int(seer))
+                if user:
+                    class SeerView(discord.ui.View):
+                        def __init__(self, alive_players, game, guild):
+                            super().__init__(timeout=15)
+                            self.alive = alive_players
+                            self.game = game
+                            self.guild = guild
+                            self.chosen = None
+                            for uid in alive_players:
+                                if uid != seer:
+                                    name = game.get_player_name(uid, guild)
+                                    btn = discord.ui.Button(label=name, custom_id=f"seer_{uid}", style=discord.ButtonStyle.primary)
+                                    btn.callback = self.btn_callback
+                                    self.add_item(btn)
+                        async def btn_callback(self, interaction: discord.Interaction):
+                            if interaction.user.id != int(seer):
+                                await interaction.response.send_message("❌ Không phải lượt của bạn!", ephemeral=True)
+                                return
+                            self.chosen = interaction.data["custom_id"].split("_")[1]
+                            self.stop()
+                            await interaction.response.send_message(f"✅ Đã soi **{self.game.get_player_name(self.chosen, self.guild)}**", ephemeral=True)
+                    
+                    view = SeerView([uid for uid in game.alive if uid != seer], game, channel.guild)
+                    await user.send("🔮 **Chọn 1 người để soi:**", view=view)
+                    await view.wait()
+                    if view.chosen:
+                        seer_target = view.chosen
+                        target_role = game.roles[seer_target]
+                        is_wolf = "🐺 **Ma sói**" if target_role == "Ma sói" else f"👤 **{target_role}**"
+                        await user.send(f"🔮 Kết quả: {game.get_player_name(seer_target, channel.guild)} là {is_wolf}")
+            except:
+                pass
+        
+        # 3. Bảo vệ
+        guardians = [uid for uid in game.alive if game.roles[uid] == "Bảo vệ"]
+        guardian_target = None
+        if guardians:
+            guardian = guardians[0]
+            try:
+                user = await channel.guild.fetch_member(int(guardian))
+                if user:
+                    class GuardianView(discord.ui.View):
+                        def __init__(self, alive_players, game, guild, last_target):
+                            super().__init__(timeout=15)
+                            self.alive = alive_players
+                            self.game = game
+                            self.guild = guild
+                            self.last_target = last_target
+                            self.chosen = None
+                            for uid in alive_players:
+                                if uid != guardian and uid != last_target:
+                                    name = game.get_player_name(uid, guild)
+                                    btn = discord.ui.Button(label=name, custom_id=f"guard_{uid}", style=discord.ButtonStyle.success)
+                                    btn.callback = self.btn_callback
+                                    self.add_item(btn)
+                        async def btn_callback(self, interaction: discord.Interaction):
+                            if interaction.user.id != int(guardian):
+                                await interaction.response.send_message("❌ Không phải lượt của bạn!", ephemeral=True)
+                                return
+                            self.chosen = interaction.data["custom_id"].split("_")[1]
+                            self.stop()
+                            await interaction.response.send_message(f"✅ Đã bảo vệ **{self.game.get_player_name(self.chosen, self.guild)}**", ephemeral=True)
+                    
+                    view = GuardianView([uid for uid in game.alive if uid != guardian], game, channel.guild, game.used_abilities.get("guardian_last"))
+                    await user.send("🛡️ **Chọn 1 người để bảo vệ đêm nay:**", view=view)
+                    await view.wait()
+                    if view.chosen:
+                        guardian_target = view.chosen
+                        game.used_abilities["guardian_last"] = guardian_target
+            except:
+                pass
+        
+        # Xử lý kết quả đêm
+        # Xác định ai chết
+        if wolf_target and wolf_target in game.alive:
+            # Kiểm tra bảo vệ
+            if guardian_target == wolf_target:
+                await channel.send("🛡️ **Bảo vệ đã cứu 1 người!**")
+            else:
+                game.deaths.append(wolf_target)
+        
+        # Phù thủy cứu
+        witches = [uid for uid in game.alive if game.roles[uid] == "Phù thủy"]
+        if witches and game.deaths and not game.used_abilities["witch_save"]:
+            witch = witches[0]
+            try:
+                user = await channel.guild.fetch_member(int(witch))
+                if user:
+                    class WitchSaveView(discord.ui.View):
+                        def __init__(self, victim_name):
+                            super().__init__(timeout=10)
+                            self.chosen = None
+                            btn_yes = discord.ui.Button(label="✅ Cứu", style=discord.ButtonStyle.success, custom_id="save_yes")
+                            btn_no = discord.ui.Button(label="❌ Không", style=discord.ButtonStyle.danger, custom_id="save_no")
+                            btn_yes.callback = self.btn_callback
+                            btn_no.callback = self.btn_callback
+                            self.add_item(btn_yes)
+                            self.add_item(btn_no)
+                            self.victim_name = victim_name
+                        async def btn_callback(self, interaction: discord.Interaction):
+                            if interaction.user.id != int(witch):
+                                await interaction.response.send_message("❌ Không phải lượt của bạn!", ephemeral=True)
+                                return
+                            self.chosen = interaction.data["custom_id"].split("_")[1]
+                            self.stop()
+                            await interaction.response.send_message(f"✅ Đã chọn {self.chosen.upper()}", ephemeral=True)
+                    
+                    victim_name = game.get_player_name(game.deaths[0], channel.guild)
+                    view = WitchSaveView(victim_name)
+                    await user.send(f"🧪 **{victim_name}** bị cắn. Dùng bình cứu?", view=view)
+                    await view.wait()
+                    if view.chosen == "yes":
+                        game.used_abilities["witch_save"] = True
+                        game.saved = game.deaths[0]
+                        game.deaths.remove(game.deaths[0])
+                        await user.send("✅ Đã dùng bình cứu!")
+            except:
+                pass
+        
+        # Phù thủy giết
+        if witches and not game.used_abilities["witch_kill"]:
+            witch = witches[0]
+            try:
+                user = await channel.guild.fetch_member(int(witch))
+                if user:
+                    class WitchKillView(discord.ui.View):
+                        def __init__(self, alive_players, game, guild):
+                            super().__init__(timeout=10)
+                            self.alive = alive_players
+                            self.game = game
+                            self.guild = guild
+                            self.chosen = None
+                            # Nút hủy
+                            btn_cancel = discord.ui.Button(label="❌ Hủy", style=discord.ButtonStyle.secondary, custom_id="kill_cancel")
+                            btn_cancel.callback = self.btn_callback
+                            self.add_item(btn_cancel)
+                            for uid in alive_players:
+                                if uid != witch:
+                                    name = game.get_player_name(uid, guild)
+                                    btn = discord.ui.Button(label=name, custom_id=f"kill_{uid}", style=discord.ButtonStyle.danger)
+                                    btn.callback = self.btn_callback
+                                    self.add_item(btn)
+                        async def btn_callback(self, interaction: discord.Interaction):
+                            if interaction.user.id != int(witch):
+                                await interaction.response.send_message("❌ Không phải lượt của bạn!", ephemeral=True)
+                                return
+                            self.chosen = interaction.data["custom_id"].split("_")[1]
+                            self.stop()
+                            await interaction.response.send_message(f"✅ Đã chọn", ephemeral=True)
+                    
+                    view = WitchKillView([uid for uid in game.alive if uid != witch], game, channel.guild)
+                    await user.send("🧪 **Chọn 1 người để đầu độc (hoặc Hủy):**", view=view)
+                    await view.wait()
+                    if view.chosen and view.chosen != "cancel":
+                        target = view.chosen
+                        if target in game.alive:
+                            game.used_abilities["witch_kill"] = True
+                            if target not in game.deaths:
+                                game.deaths.append(target)
+                            await user.send(f"✅ Đã đầu độc {game.get_player_name(target, channel.guild)}")
+            except:
+                pass
+        
+        # Công bố kết quả đêm
+        if game.deaths:
+            death_names = [game.get_player_name(uid, channel.guild) for uid in game.deaths]
+            await channel.send(f"💀 **SÁNG HÔM SAU**\nCó người đã chết: **{', '.join(death_names)}**")
+            for uid in game.deaths:
+                if uid in game.alive:
+                    game.alive.remove(uid)
+        else:
+            await channel.send("🌅 **SÁNG HÔM SAU**\nKhông có ai chết đêm nay!")
+        
+        # Kiểm tra game over
+        if game.is_game_over():
+            break
+        
+        # === PHA NGÀY ===
+        game.day_count += 1
+        await channel.send(f"☀️ **NGÀY {game.day_count}**\nMọi người thảo luận và bỏ phiếu treo cổ.")
+        
+        # Thảo luận 30 giây
+        await channel.send("💬 **Thảo luận trong 30 giây...**")
+        await asyncio.sleep(30)
+        
+        # Vote treo cổ
+        alive_list = list(game.alive)
+        if len(alive_list) < 2:
+            await channel.send("❌ Không đủ người để vote!")
+            break
+        
+        # Tạo view vote
+        class HangView(discord.ui.View):
+            def __init__(self, alive_players, game, guild):
+                super().__init__(timeout=30)
+                self.alive = alive_players
+                self.game = game
+                self.guild = guild
+                self.votes = {}
+                for uid in alive_players:
+                    name = game.get_player_name(uid, guild)
+                    btn = discord.ui.Button(label=name, custom_id=f"hang_{uid}", style=discord.ButtonStyle.secondary)
+                    btn.callback = self.btn_callback
+                    self.add_item(btn)
+            async def btn_callback(self, interaction: discord.Interaction):
+                voter_id = str(interaction.user.id)
+                if voter_id not in self.alive:
+                    await interaction.response.send_message("❌ Bạn đã chết hoặc không phải người chơi!", ephemeral=True)
+                    return
+                if voter_id in self.votes:
+                    await interaction.response.send_message("❌ Bạn đã bỏ phiếu rồi!", ephemeral=True)
+                    return
+                target = interaction.data["custom_id"].split("_")[1]
+                if target not in self.alive:
+                    await interaction.response.send_message("❌ Người này đã chết!", ephemeral=True)
+                    return
+                self.votes[voter_id] = target
+                await interaction.response.send_message(f"✅ Đã vote **{self.game.get_player_name(target, self.guild)}**", ephemeral=True)
+        
+        hang_view = HangView(alive_list, game, channel.guild)
+        await channel.send("🗳️ **Bỏ phiếu treo cổ (30 giây):**", view=hang_view)
+        await hang_view.wait()
+        
+        # Đếm phiếu
+        if hang_view.votes:
+            vote_count = {}
+            for target in hang_view.votes.values():
+                vote_count[target] = vote_count.get(target, 0) + 1
+            if vote_count:
+                max_votes = max(vote_count.values())
+                top_voted = [uid for uid, count in vote_count.items() if count == max_votes]
+                if top_voted:
+                    hanged = random.choice(top_voted)
+                    await channel.send(f"⚖️ **KẾT QUẢ**\n**{game.get_player_name(hanged, channel.guild)}** bị treo cổ với {max_votes} phiếu!")
+                    if hanged in game.alive:
+                        game.alive.remove(hanged)
+                        
+                        # Thợ săn bắn
+                        if game.roles[hanged] == "Thợ săn":
+                            hunter = hanged
+                            try:
+                                user = await channel.guild.fetch_member(int(hunter))
+                                if user:
+                                    class HunterView(discord.ui.View):
+                                        def __init__(self, alive_players, game, guild):
+                                            super().__init__(timeout=15)
+                                            self.alive = alive_players
+                                            self.game = game
+                                            self.guild = guild
+                                            self.chosen = None
+                                            for uid in alive_players:
+                                                if uid != hunter:
+                                                    name = game.get_player_name(uid, guild)
+                                                    btn = discord.ui.Button(label=name, custom_id=f"hunt_{uid}", style=discord.ButtonStyle.danger)
+                                                    btn.callback = self.btn_callback
+                                                    self.add_item(btn)
+                                        async def btn_callback(self, interaction: discord.Interaction):
+                                            if interaction.user.id != int(hunter):
+                                                await interaction.response.send_message("❌ Không phải lượt của bạn!", ephemeral=True)
+                                                return
+                                            self.chosen = interaction.data["custom_id"].split("_")[1]
+                                            self.stop()
+                                            await interaction.response.send_message(f"✅ Đã chọn", ephemeral=True)
+                                    
+                                    alive_for_hunter = [uid for uid in game.alive if uid != hunter]
+                                    if alive_for_hunter:
+                                        view = HunterView(alive_for_hunter, game, channel.guild)
+                                        await user.send("🏹 **Bạn bị treo cổ! Chọn 1 người để bắn:**", view=view)
+                                        await view.wait()
+                                        if view.chosen:
+                                            target = view.chosen
+                                            if target in game.alive:
+                                                game.alive.remove(target)
+                                                await channel.send(f"🏹 **{game.get_player_name(target, channel.guild)}** bị Thợ săn bắn chết!")
+                            except:
+                                pass
+        else:
+            await channel.send("⏰ **Không có ai bỏ phiếu! Không ai bị treo cổ.**")
+        
+        # Kiểm tra game over
+        if game.is_game_over():
+            break
+    
+    # === KẾT THÚC ===
+    await channel.send(f"🎉 **GAME KẾT THÚC!**\n🏆 Phe **{game.winner}** chiến thắng!")
+    
+    # Cộng điểm
+    if game.winner == "Dân làng":
+        for uid in game.alive:
+            if game.roles[uid] != "Ma sói":
+                add_points(uid, 30)
+                try:
+                    user = await channel.guild.fetch_member(int(uid))
+                    if user:
+                        await user.send(f"🎉 Bạn thắng với phe Dân làng! +30 điểm.")
+                except:
+                    pass
+    elif game.winner == "Ma sói":
+        for uid in game.alive:
+            if game.roles[uid] == "Ma sói":
+                add_points(uid, 50)
+                try:
+                    user = await channel.guild.fetch_member(int(uid))
+                    if user:
+                        await user.send(f"🎉 Bạn thắng với phe Ma sói! +50 điểm.")
+                except:
+                    pass
+    
+    # Reset players
+    reset_players()
 
 # ===== VOTE MINI GAME =====
 class VoteView(discord.ui.View):
@@ -221,6 +746,8 @@ async def run_mini_game(channel, game_id):
         await game_solo_duel(channel)
     elif game_id == "13":
         await game_race(channel)
+    elif game_id == "14":
+        await run_werewolf(channel)
     
     reset_players()
 
@@ -852,7 +1379,6 @@ async def on_interaction(interaction: discord.Interaction):
             await vote_msg.edit(embed=embed_vote)
             await asyncio.sleep(1)
 
-        # Cập nhật lần cuối hiển thị 0s
         embed_vote.description = (
             f"Bấm nút bên dưới để bỏ phiếu chọn game.\n"
             f"⏳ Thời gian còn lại: **0s**\n"
