@@ -732,7 +732,6 @@ async def slash_start(interaction: discord.Interaction):
         await interaction.response.send_message("❌ Lệnh này chỉ dùng trong server!", ephemeral=True)
         return
 
-    # Hiển thị danh sách người tham gia
     player_list = "\n".join([f"👤 {name}" for name in players.values()]) if players else "Chưa có ai tham gia"
     embed = discord.Embed(
         title="🎮 **SẢNH GAME - BANANAVUIVE** 🎮",
@@ -755,12 +754,12 @@ async def on_interaction(interaction: discord.Interaction):
     
     if custom_id == "join_start":
         global players
-        players = load_players()  # Load lại để đảm bảo dữ liệu mới nhất
+        players = load_players()
         user_id = str(interaction.user.id)
         if user_id not in players:
             players[user_id] = interaction.user.name
             save_players(players)
-            # Cập nhật embed với danh sách mới
+            # Cập nhật embed
             embed = interaction.message.embeds[0]
             player_list = "\n".join([f"👤 {name}" for name in players.values()]) if players else "Chưa có ai tham gia"
             embed.description = f"⏳ Nhấn **Tham gia ngay!** để vào game.\n👥 Số người đã tham gia: **{len(players)}**\n📋 **Danh sách:**\n{player_list}\n▶️ Nhấn **Bắt đầu game!** để bắt đầu vote."
