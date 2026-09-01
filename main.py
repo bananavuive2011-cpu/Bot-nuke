@@ -136,11 +136,12 @@ class VoteView(discord.ui.View):
         else:
             await interaction.response.send_message("❌ Bạn đã bỏ phiếu rồi!", ephemeral=True)
 
-# ===== LỚP JOIN =====
-class JoinView(discord.ui.View):
+# ===== LỚP START =====
+class StartView(discord.ui.View):
     def __init__(self):
-        super().__init__(timeout=START_COUNTDOWN)
+        super().__init__(timeout=300)
         self.add_item(discord.ui.Button(label="🎮 Tham gia ngay!", style=discord.ButtonStyle.success, custom_id="join_start"))
+        self.add_item(discord.ui.Button(label="▶️ Bắt đầu game!", style=discord.ButtonStyle.primary, custom_id="start_game"))
 
 # ===== HÀM CHẠY MINI GAME =====
 async def run_mini_game(channel, game_id):
@@ -465,10 +466,10 @@ QUESTIONS = [
 # ===== KHỞI TẠO CLIENT VÀ TREE =====
 intents = discord.Intents.all()
 client = discord.Client(intents=intents)
-tree = app_commands.CommandTree(client)  # <--- DÒNG QUAN TRỌNG
+tree = app_commands.CommandTree(client)
 
 # ===== LỆNH START =====
-@tree.command(name="start", description="🎮 Mở sảnh game và bắt đầu vote mini game")
+@tree.command(name="start", description="🎮 Mở sảnh game – tham gia và bắt đầu")
 async def slash_start(interaction: discord.Interaction):
     if not interaction.guild:
         await interaction.response.send_message("❌ Lệnh này chỉ dùng trong server!", ephemeral=True)
@@ -476,68 +477,94 @@ async def slash_start(interaction: discord.Interaction):
 
     embed = discord.Embed(
         title="🎮 **SẢNH GAME - BANANAVUIVE** 🎮",
-        description="⏳ Chuẩn bị bắt đầu...\nHãy tham gia bằng cách bấm nút bên dưới!",
+        description="⏳ Nhấn **Tham gia ngay!** để vào game.\n"
+                    "👥 Số người đã tham gia: **0**\n"
+                    "▶️ Nhấn **Bắt đầu game!** để bắt đầu vote.",
         color=discord.Color.blue()
     )
-    view = JoinView()
+    view = StartView()
     await interaction.response.send_message(embed=embed, view=view)
 
-    for i in range(START_COUNTDOWN, 0, -1):
-        await interaction.edit_original_response(content=f"⏳ Bắt đầu sau **{i}** giây...")
-        await asyncio.sleep(1)
-
-    embed_vote = discord.Embed(
-        title="🎮 **CHỌN MINI GAME** 🎮",
-        description="Bấm nút bên dưới để bỏ phiếu chọn game.\n"
-                    f"⏳ Thời gian còn lại: **{VOTE_DURATION}s**\n"
-                    "🏆 Game có số phiếu cao nhất sẽ được chọn!",
-        color=discord.Color.blue()
-    )
-    for game_id, game in MINI_GAMES.items():
-        embed_vote.add_field(name=f"{game['emoji']} {game['name']}", value=game['desc'], inline=False)
-
-    view = VoteView(MINI_GAMES)
-    msg = await interaction.followup.send(embed=embed_vote, view=view)
-    await asyncio.sleep(VOTE_DURATION)
-
-    if not view.votes:
-        await interaction.followup.send("❌ Không có ai bỏ phiếu! Hãy dùng `/start` lại.", ephemeral=True)
-        return
-
-    vote_counts = {}
-    for game_id in view.votes.values():
-        vote_counts[game_id] = vote_counts.get(game_id, 0) + 1
-
-    max_votes = max(vote_counts.values())
-    top_games = [gid for gid, count in vote_counts.items() if count == max_votes]
-    chosen_id = random.choice(top_games)
-    chosen_game = MINI_GAMES[chosen_id]
-
-    embed_result = discord.Embed(
-        title="🎉 **GAME ĐƯỢC CHỌN** 🎉",
-        description=f"**{chosen_game['emoji']} {chosen_game['name']}**\n"
-                    f"📖 {chosen_game['desc']}\n"
-                    f"🗳️ Số phiếu: **{max_votes}**",
-        color=discord.Color.gold()
-    )
-    await interaction.followup.send(embed=embed_result)
-
-    if chosen_game['mode'] == "team":
-        await run_team_game(interaction.channel, chosen_id)
-    else:
-        await run_mini_game(interaction.channel, chosen_id)
-
+# ===== XỬ LÝ BUTTON =====
 @client.event
 async def on_interaction(interaction: discord.Interaction):
-    if interaction.type == discord.InteractionType.component:
-        if interaction.data.get("custom_id") == "join_start":
-            user_id = str(interaction.user.id)
-            if user_id not in players:
-                players[user_id] = interaction.user.name
-                save_players(players)
-                await interaction.response.send_message(f"✅ **{interaction.user.mention}** đã tham gia!", ephemeral=False)
-            else:
-                await interaction.response.send_message("❌ Bạn đã tham gia rồi!", ephemeral=True)
+    if interaction.type != discord.InteractionType.component:
+        return
+
+    custom_id = interaction.data.get("custom_id")
+    
+    # THAM GIA
+    if custom_id == "join_start":
+        user_id = str(interaction.user.id)
+        if user_id not in players:
+            players[user_id] = interaction.user.name
+            save_players(players)
+            # Cập nhật số người tham gia
+            embed = interaction.message.embeds[0]
+            embed.description = f"⏳ Nhấn **Tham gia ngay!** để vào game.\n👥 Số người đã tham gia: **{len(players)}**\n▶️ Nhấn **Bắt đầu game!** để bắt đầu vote."
+            await interaction.response.edit_message(embed=embed, view=interaction.message.components[0])
+            await interaction.followup.send(f"✅ **{interaction.user.mention}** đã tham gia!", ephemeral=False)
+        else:
+            await interaction.response.send_message("❌ Bạn đã tham gia rồi!", ephemeral=True)
+
+    # BẮT ĐẦU GAME
+    elif custom_id == "start_game":
+        if len(players) < 1:
+            await interaction.response.send_message("❌ Cần ít nhất 1 người tham gia để bắt đầu!", ephemeral=True)
+            return
+
+        await interaction.response.send_message("⏳ Bắt đầu sau 3 giây...", ephemeral=False)
+        for i in range(3, 0, -1):
+            await interaction.edit_original_response(content=f"⏳ Bắt đầu sau {i} giây...")
+            await asyncio.sleep(1)
+        await interaction.edit_original_response(content="✅ Bắt đầu vote!")
+
+        # Hiển thị bảng vote
+        embed_vote = discord.Embed(
+            title="🎮 **CHỌN MINI GAME** 🎮",
+            description="Bấm nút bên dưới để bỏ phiếu chọn game.\n"
+                        f"⏳ Thời gian còn lại: **{VOTE_DURATION}s**\n"
+                        "🏆 Game có số phiếu cao nhất sẽ được chọn!",
+            color=discord.Color.blue()
+        )
+        for game_id, game in MINI_GAMES.items():
+            embed_vote.add_field(name=f"{game['emoji']} {game['name']}", value=game['desc'], inline=False)
+
+        view = VoteView(MINI_GAMES)
+        msg = await interaction.followup.send(embed=embed_vote, view=view)
+        await asyncio.sleep(VOTE_DURATION)
+
+        if not view.votes:
+            await interaction.followup.send("❌ Không có ai bỏ phiếu! Hãy dùng `/start` lại.", ephemeral=True)
+            return
+
+        vote_counts = {}
+        for game_id in view.votes.values():
+            vote_counts[game_id] = vote_counts.get(game_id, 0) + 1
+
+        max_votes = max(vote_counts.values())
+        top_games = [gid for gid, count in vote_counts.items() if count == max_votes]
+        chosen_id = random.choice(top_games)
+        chosen_game = MINI_GAMES[chosen_id]
+
+        # Đếm ngược 10s trước khi kết thúc vote
+        for i in range(10, 0, -1):
+            await interaction.edit_original_response(content=f"⏳ Kết thúc vote sau {i} giây...")
+            await asyncio.sleep(1)
+
+        embed_result = discord.Embed(
+            title="🎉 **GAME ĐƯỢC CHỌN** 🎉",
+            description=f"**{chosen_game['emoji']} {chosen_game['name']}**\n"
+                        f"📖 {chosen_game['desc']}\n"
+                        f"🗳️ Số phiếu: **{max_votes}**",
+            color=discord.Color.gold()
+        )
+        await interaction.followup.send(embed=embed_result)
+
+        if chosen_game['mode'] == "team":
+            await run_team_game(interaction.channel, chosen_id)
+        else:
+            await run_mini_game(interaction.channel, chosen_id)
 
 # ===== LỆNH RANDOM =====
 @tree.command(name="random", description="🎡 Chọn ngẫu nhiên 1 người đã tham gia và đang online")
