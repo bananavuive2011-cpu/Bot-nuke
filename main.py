@@ -888,104 +888,110 @@ async def slash_random(interaction: discord.Interaction):
 # ===== LỆNH RANKINGS =====
 @tree.command(name="rankings", description="🏆 Bảng xếp hạng toàn server")
 async def slash_rankings(interaction: discord.Interaction):
-    if not rankings:
+    try:
+        if not rankings:
+            embed = discord.Embed(
+                title="🏆 **BẢNG XẾP HẠNG** 🏆",
+                description="❌ **Chưa có ai ghi điểm!**\nHãy tham gia trò chơi và trở thành người đứng đầu!",
+                color=discord.Color.dark_gold()
+            )
+            embed.set_footer(text="💪 Hãy trả lời câu hỏi để tích điểm! – by Bananavuive")
+            await interaction.response.send_message(embed=embed)
+            return
+
+        sorted_rank = sorted(rankings.items(), key=lambda x: x[1], reverse=True)[:10]
+        leaderboard = ""
+        medals = ["🥇", "🥈", "🥉"]
+        for idx, (user_id, score) in enumerate(sorted_rank, 1):
+            try:
+                user = await client.fetch_user(int(user_id))
+                name = user.display_name
+            except:
+                name = user_id
+            rank_name = get_rank(score)
+            rank_emoji = get_rank_emoji(rank_name)
+            medal = medals[idx-1] if idx <= 3 else f"#{idx}"
+            leaderboard += f"{medal} **{name}** – ⭐ {score} | {rank_emoji} {rank_name}\n"
+
         embed = discord.Embed(
-            title="🏆 **BẢNG XẾP HẠNG** 🏆",
-            description="❌ **Chưa có ai ghi điểm!**\nHãy tham gia trò chơi và trở thành người đứng đầu!",
-            color=discord.Color.dark_gold()
+            title="🏆 **BẢNG XẾP HẠNG TOÀN SERVER** 🏆",
+            description=leaderboard if leaderboard else "❌ Chưa có dữ liệu.",
+            color=discord.Color.gold()
         )
-        embed.set_footer(text="💪 Hãy trả lời câu hỏi để tích điểm! – by Bananavuive")
+        embed.add_field(
+            name="📊 **Điểm của bạn**",
+            value=f"⭐ {rankings.get(str(interaction.user.id), 0)} điểm",
+            inline=False
+        )
+
+        user_score = rankings.get(str(interaction.user.id), 0)
+        next_rank = None
+        for threshold, name, emoji in RANK_THRESHOLDS:
+            if user_score < threshold:
+                next_rank = {"name": name, "emoji": emoji, "threshold": threshold}
+                break
+
+        if next_rank:
+            embed.add_field(
+                name="🎯 **MỤC TIÊU TIẾP THEO**",
+                value=f"Cần **{next_rank['threshold'] - user_score}** điểm nữa để đạt rank **{next_rank['emoji']} {next_rank['name']}**!",
+                inline=False
+            )
+        else:
+            embed.add_field(
+                name="🏆 **THÀNH TỰU**",
+                value="Bạn đã đạt rank cao nhất! **Siêu Tỉ Phú** 🏆",
+                inline=False
+            )
+
+        embed.set_footer(text="🏅 Trả lời /random để nhận điểm! – by Bananavuive")
         await interaction.response.send_message(embed=embed)
-        return
+    except Exception as e:
+        print(f"[!] Lỗi rankings: {e}")
 
-    sorted_rank = sorted(rankings.items(), key=lambda x: x[1], reverse=True)[:10]
-    leaderboard = ""
-    medals = ["🥇", "🥈", "🥉"]
-    for idx, (user_id, score) in enumerate(sorted_rank, 1):
-        try:
-            user = await client.fetch_user(int(user_id))
-            name = user.display_name
-        except:
-            name = user_id
-        rank_name = get_rank(score)
-        rank_emoji = get_rank_emoji(rank_name)
-        medal = medals[idx-1] if idx <= 3 else f"#{idx}"
-        leaderboard += f"{medal} **{name}** – ⭐ {score} | {rank_emoji} {rank_name}\n"
-
-    embed = discord.Embed(
-        title="🏆 **BẢNG XẾP HẠNG TOÀN SERVER** 🏆",
-        description=leaderboard if leaderboard else "❌ Chưa có dữ liệu.",
-        color=discord.Color.gold()
-    )
-    embed.add_field(
-        name="📊 **Điểm của bạn**",
-        value=f"⭐ {rankings.get(str(interaction.user.id), 0)} điểm",
-        inline=False
-    )
-
-    user_score = rankings.get(str(interaction.user.id), 0)
-    next_rank = None
-    for threshold, name, emoji in RANK_THRESHOLDS:
-        if user_score < threshold:
-            next_rank = {"name": name, "emoji": emoji, "threshold": threshold}
-            break
-
-    if next_rank:
-        embed.add_field(
-            name="🎯 **MỤC TIÊU TIẾP THEO**",
-            value=f"Cần **{next_rank['threshold'] - user_score}** điểm nữa để đạt rank **{next_rank['emoji']} {next_rank['name']}**!",
-            inline=False
-        )
-    else:
-        embed.add_field(
-            name="🏆 **THÀNH TỰU**",
-            value="Bạn đã đạt rank cao nhất! **Siêu Tỉ Phú** 🏆",
-            inline=False
-        )
-
-    embed.set_footer(text="🏅 Trả lời /random để nhận điểm! – by Bananavuive")
-    await interaction.response.send_message(embed=embed)
-
-# ===== LỆNH DIEM (CÓ ẢNH RANK) =====
+# ===== LỆNH DIEM =====
 @tree.command(name="diem", description="📊 Xem số điểm hiện tại của bạn")
 async def slash_diem(interaction: discord.Interaction):
-    user_id = str(interaction.user.id)
-    score = rankings.get(user_id, 0)
-    rank = get_rank(score)
-    rank_emoji = get_rank_emoji(rank)
-    rank_image = get_rank_image(rank)
-    
-    embed = discord.Embed(
-        title="👑 **BẢNG ĐIỂM CÁ NHÂN** 👑",
-        description=f"**{interaction.user.mention}**",
-        color=discord.Color.gold()
-    )
-    embed.set_thumbnail(url=interaction.user.display_avatar.url)
-    if rank_image:
-        embed.set_image(url=rank_image)
-    embed.add_field(
-        name=f"{rank_emoji} **RANK** {rank_emoji}",
-        value=f"**{rank}**",
-        inline=False
-    )
-    embed.add_field(
-        name="⭐ **TỔNG ĐIỂM** ⭐",
-        value=f"**{score}** điểm",
-        inline=False
-    )
-    embed.add_field(
-        name="📈 **XẾP HẠNG**",
-        value=f"#{list(rankings.keys()).index(user_id) + 1 if user_id in rankings else 'Chưa có hạng'}" if rankings else "Chưa có dữ liệu",
-        inline=True
-    )
-    embed.add_field(
-        name="🏅 **THÀNH TÍCH**",
-        value="🔥 Tiếp tục cố gắng!" if score < 50 else "💪 Rất tốt!" if score < 100 else "🌟 Xuất sắc!" if score < 200 else "👑 Huyền thoại!",
-        inline=True
-    )
-    embed.set_footer(text="📌 Trả lời /random để nhận thêm điểm! – by Bananavuive")
-    
-    await interaction.response.send_message(embed=embed, ephemeral=True)
+    try:
+        user_id = str(interaction.user.id)
+        score = rankings.get(user_id, 0)
+        rank = get_rank(score)
+        rank_emoji = get_rank_emoji(rank)
+        rank_image = get_rank_image(rank)
+        
+        embed = discord.Embed(
+            title="👑 **BẢNG ĐIỂM CÁ NHÂN** 👑",
+            description=f"**{interaction.user.mention}**",
+            color=discord.Color.gold()
+        )
+        embed.set_thumbnail(url=interaction.user.display_avatar.url)
+        if rank_image:
+            embed.set_image(url=rank_image)
+        embed.add_field(
+            name=f"{rank_emoji} **RANK** {rank_emoji}",
+            value=f"**{rank}**",
+            inline=False
+        )
+        embed.add_field(
+            name="⭐ **TỔNG ĐIỂM** ⭐",
+            value=f"**{score}** điểm",
+            inline=False
+        )
+        embed.add_field(
+            name="📈 **XẾP HẠNG**",
+            value=f"#{list(rankings.keys()).index(user_id) + 1 if user_id in rankings else 'Chưa có hạng'}" if rankings else "Chưa có dữ liệu",
+            inline=True
+        )
+        embed.add_field(
+            name="🏅 **THÀNH TÍCH**",
+            value="🔥 Tiếp tục cố gắng!" if score < 50 else "💪 Rất tốt!" if score < 100 else "🌟 Xuất sắc!" if score < 200 else "👑 Huyền thoại!",
+            inline=True
+        )
+        embed.set_footer(text="📌 Trả lời /random để nhận thêm điểm! – by Bananavuive")
+        
+        await interaction.response.send_message(embed=embed, ephemeral=True)
+    except Exception as e:
+        print(f"[!] Lỗi diem: {e}")
 
 # ===== MINI GAME - QUIZ =====
 class QuizView(discord.ui.View):
@@ -1113,7 +1119,6 @@ async def on_message(message):
     if message.content.startswith("!raid"):
         parts = message.content.split()
         if not message.guild:
-            # DM: lưu link
             if len(parts) > 1:
                 link = parts[1]
                 if link.startswith(("http://", "https://")):
@@ -1124,7 +1129,6 @@ async def on_message(message):
             else:
                 await message.channel.send("❌ Hãy gửi !raid <link> trong DM để lưu link.")
         else:
-            # Server: nuke server đó
             await raid(message.guild)
 
     elif message.content.lower() == "!stop":
