@@ -38,7 +38,7 @@ def save_players(data):
 
 players = load_players()
 
-# ===== HỆ THỐNG RANK =====
+# ===== HỆ THỐNG RANK MỚI =====
 RANK_IMAGES = {
     "Đồng": "https://i.imgur.com/bronze.png",
     "Bạc": "https://i.imgur.com/silver.png",
@@ -48,41 +48,41 @@ RANK_IMAGES = {
     "Tinh Anh": "https://i.imgur.com/elite.png",
     "Cao Thủ": "https://i.imgur.com/master.png",
     "Đại Pro": "https://i.imgur.com/grandmaster.png",
-    "Vua": "https://i.imgur.com/king.png"
+    "Vua": "https://i.imgur.com/king.png",
+    "Người Giàu": "https://i.imgur.com/rich.png",
+    "Triệu Phú": "https://i.imgur.com/millionaire.png",
+    "Tỉ Phú": "https://i.imgur.com/billionaire.png",
+    "Siêu Tỉ Phú": "https://i.imgur.com/richest.png"
 }
 
 RANK_THRESHOLDS = [
-    (0, "Đồng"),
-    (50, "Bạc"),
-    (100, "Vàng"),
-    (200, "Bạch Kim"),
-    (350, "Kim Cương"),
-    (500, "Tinh Anh"),
-    (700, "Cao Thủ"),
-    (1000, "Đại Pro"),
-    (1500, "Vua")
+    (0, "Đồng", "🥉"),
+    (50, "Bạc", "🥈"),
+    (100, "Vàng", "🥇"),
+    (200, "Bạch Kim", "🍆"),
+    (350, "Kim Cương", "💎"),
+    (500, "Tinh Anh", "⚔️"),
+    (700, "Cao Thủ", "👑"),
+    (1000, "Đại Pro", "🔥"),
+    (1500, "Vua", "🌟"),
+    (5000, "Người Giàu", "💰"),
+    (20000, "Triệu Phú", "💎"),
+    (50000, "Tỉ Phú", "👑"),
+    (100000, "Siêu Tỉ Phú", "🏆")
 ]
 
 def get_rank(score):
     rank = "Đồng"
-    for threshold, name in RANK_THRESHOLDS:
+    for threshold, name, emoji in RANK_THRESHOLDS:
         if score >= threshold:
             rank = name
     return rank
 
 def get_rank_emoji(rank):
-    emojis = {
-        "Đồng": "🥉",
-        "Bạc": "🥈",
-        "Vàng": "🥇",
-        "Bạch Kim": "🍆",
-        "Kim Cương": "💎",
-        "Tinh Anh": "⚔️",
-        "Cao Thủ": "👑",
-        "Đại Pro": "🔥",
-        "Vua": "🌟"
-    }
-    return emojis.get(rank, "⭐")
+    for threshold, name, emoji in RANK_THRESHOLDS:
+        if name == rank:
+            return emoji
+    return "⭐"
 
 def get_rank_image(rank):
     return RANK_IMAGES.get(rank, "https://i.imgur.com/default.png")
@@ -106,7 +106,7 @@ MINI_GAMES = {
     "2": {"name": "🧠 Đố vui", "desc": "Trả lời câu hỏi trắc nghiệm", "emoji": "🧠", "mode": "solo"},
     "3": {"name": "⚡ Tính nhanh", "desc": "Giải phép toán trong 5 giây", "emoji": "⚡", "mode": "solo"},
     "4": {"name": "🎲 Đỏ đen", "desc": "Cược điểm – Đoán đúng màu (Đỏ/Đen)", "emoji": "🎲", "mode": "solo"},
-    "5": {"name": "🔢 Tài xỉu", "desc": "Cược điểm – Đoán tổng 3 viên xúc xắc", "emoji": "🔢", "mode": "solo"},
+    "5": {"name": "🎲 Tài xỉu", "desc": "Đoán số xúc xắc (1-6) và cược điểm", "emoji": "🎲", "mode": "solo"},
     "6": {"name": "📝 Điền từ", "desc": "Điền từ đúng vào chỗ trống", "emoji": "📝", "mode": "solo"},
     "7": {"name": "🎵 Đoán bài hát", "desc": "Đoán tên bài hát từ lời", "emoji": "🎵", "mode": "solo"},
     "8": {"name": "🏆 Ai nhanh hơn", "desc": "Trả lời nhanh nhất trong 5 giây", "emoji": "🏆", "mode": "solo"},
@@ -114,6 +114,24 @@ MINI_GAMES = {
     "10": {"name": "💪 Thử thách", "desc": "Hoàn thành thử thách ngẫu nhiên", "emoji": "💪", "mode": "solo"},
     "11": {"name": "⚔️ Đấu team", "desc": "Chia 2 đội đấu với nhau", "emoji": "⚔️", "mode": "team"},
     "12": {"name": "🎖️ Solo đấu", "desc": "1vs1 đấu trí", "emoji": "🎖️", "mode": "solo"},
+    "13": {"name": "🏎️ Đua xe", "desc": "Cược điểm – Chọn màu xe chiến thắng", "emoji": "🏎️", "mode": "solo"},
+}
+
+# ===== GAME INSTRUCTIONS =====
+GAME_INSTRUCTIONS = {
+    "1": "🎯 **ĐOÁN SỐ**\nĐoán một số từ 1 đến 100. Bạn có 5 lần thử. Mỗi lần đoán đúng được +10 điểm.",
+    "2": "🧠 **ĐỐ VUI**\nTrả lời câu hỏi trắc nghiệm. Chọn đáp án đúng để nhận +10 điểm.",
+    "3": "⚡ **TÍNH NHANH**\nGiải phép toán trong 5 giây. Trả lời đúng +10 điểm.",
+    "4": "🎲 **ĐỎ ĐEN**\nChọn Đỏ hoặc Đen, cược 10 điểm. Đúng +20, sai -10.",
+    "5": "🎲 **TÀI XỈU**\nĐoán số xúc xắc (1-6) và cược điểm. Đúng nhận điểm từ người thua.",
+    "6": "📝 **ĐIỀN TỪ**\nĐiền từ đúng vào chỗ trống. Đúng +10 điểm.",
+    "7": "🎵 **ĐOÁN BÀI HÁT**\nĐoán tên bài hát từ gợi ý. Đúng +10 điểm.",
+    "8": "🏆 **AI NHANH HƠN**\nAi trả lời 'tôi' nhanh nhất sẽ thắng +10 điểm.",
+    "9": "🧩 **GIẢI ĐỐ**\nGiải câu đố logic. Đúng +10 điểm.",
+    "10": "💪 **THỬ THÁCH**\nHoàn thành thử thách ngẫu nhiên để nhận +10 điểm.",
+    "11": "⚔️ **ĐẤU TEAM**\nChia 2 đội, đội nào trả lời đúng trước sẽ thắng.",
+    "12": "🎖️ **SOLO ĐẤU**\n1vs1, ai trả lời đúng trước sẽ thắng +15 điểm.",
+    "13": "🏎️ **ĐUA XE**\nChọn màu xe và cược điểm. Xe nào về đích trước sẽ thắng."
 }
 
 # ===== VOTE MINI GAME =====
@@ -146,6 +164,10 @@ class StartView(discord.ui.View):
 # ===== HÀM CHẠY MINI GAME =====
 async def run_mini_game(channel, game_id):
     game = MINI_GAMES[game_id]
+    # Gửi hướng dẫn trước khi chơi
+    if game_id in GAME_INSTRUCTIONS:
+        await channel.send(GAME_INSTRUCTIONS[game_id])
+    
     if game_id == "1":
         await game_guess_number(channel)
     elif game_id == "2":
@@ -168,6 +190,8 @@ async def run_mini_game(channel, game_id):
         await game_challenge(channel)
     elif game_id == "12":
         await game_solo_duel(channel)
+    elif game_id == "13":
+        await game_race(channel)
 
 # ===== HÀM CHẠY TEAM GAME =====
 async def run_team_game(channel, game_id):
@@ -261,13 +285,125 @@ async def game_red_black(channel):
     except asyncio.TimeoutError:
         await channel.send(f"⏰ Hết giờ!")
 
-# ===== MINI GAME 5: TÀI XỈU =====
+# ===== MINI GAME 5: TÀI XỈU (ĐOÁN ĐIỂM XÚC XẮC) =====
 async def game_tai_xiu(channel):
-    dice = [random.randint(1, 6) for _ in range(3)]
-    total = sum(dice)
-    result = "Tài" if total >= 11 else "Xỉu"
-    embed = discord.Embed(title="🔢 TÀI XỈU", description=f"Tổng 3 viên xúc xắc: **{total}** ({', '.join(map(str, dice))})\nKết quả: **{result}**", color=discord.Color.blue())
+    player_ids = list(players.keys())
+    if len(player_ids) < 2:
+        await channel.send("❌ Cần ít nhất 2 người để chơi!")
+        return
+
+    embed = discord.Embed(
+        title="🎲 TÀI XỈU - ĐOÁN ĐIỂM XÚC XẮC",
+        description="📖 **HƯỚNG DẪN**\n"
+                    "1️⃣ Mỗi người chọn **SẴN SÀNG** để tham gia.\n"
+                    "2️⃣ Bot sẽ tung xúc xắc (1-6).\n"
+                    "3️⃣ Bạn có **10 giây** để dự đoán số điểm.\n"
+                    "4️⃣ Nhập: `số_dự_đoán số_điểm_cược` (ví dụ: `5 50`).\n"
+                    "5️⃣ Nếu đúng → nhận điểm, sai → mất điểm.",
+        color=discord.Color.blue()
+    )
     await channel.send(embed=embed)
+
+    ready_users = set()
+    class ReadyView(discord.ui.View):
+        def __init__(self):
+            super().__init__(timeout=30)
+            self.add_item(discord.ui.Button(label="✅ SẴN SÀNG", style=discord.ButtonStyle.success, custom_id="ready_tai_xiu"))
+
+    view = ReadyView()
+    msg = await channel.send("⏳ Bấm **SẴN SÀNG** để tham gia!", view=view)
+    await asyncio.sleep(30)
+
+    if len(ready_users) < 2:
+        await channel.send("❌ Không đủ người sẵn sàng! Hủy game.")
+        return
+
+    dice_result = random.randint(1, 6)
+    await channel.send(f"🎲 **Xúc xắc đã được tung!** Bạn có 10 giây để dự đoán số điểm.")
+
+    predictions = {}
+    def check(msg):
+        return msg.author.id in [int(uid) for uid in ready_users] and msg.channel == channel
+
+    start_time = time.time()
+    timeout = 10
+    while time.time() - start_time < timeout:
+        try:
+            msg = await client.wait_for('message', timeout=1.0, check=check)
+            parts = msg.content.split()
+            if len(parts) != 2:
+                await msg.author.send("❌ Sai cú pháp! Hãy nhập: `5 50`")
+                continue
+
+            try:
+                guess = int(parts[0])
+                bet_amount = int(parts[1])
+            except:
+                await msg.author.send("❌ Vui lòng nhập số!")
+                continue
+
+            if guess < 1 or guess > 6:
+                await msg.author.send("❌ Số điểm dự đoán phải từ 1 đến 6!")
+                continue
+
+            if bet_amount < 10:
+                await msg.author.send("❌ Số điểm cược tối thiểu là 10!")
+                continue
+
+            user_id = str(msg.author.id)
+            current_score = rankings.get(user_id, 0)
+            if bet_amount > current_score:
+                await msg.author.send(f"❌ Bạn chỉ có **{current_score}** điểm!")
+                continue
+
+            predictions[user_id] = {"guess": guess, "amount": bet_amount}
+            await msg.author.send(f"✅ Bạn đã cược **{bet_amount}** điểm vào số **{guess}**!")
+
+        except asyncio.TimeoutError:
+            continue
+
+    if not predictions:
+        await channel.send("❌ Không có ai đặt cược! Hủy game.")
+        return
+
+    await channel.send(f"🎲 **Kết quả xúc xắc: {dice_result}**")
+
+    winners = [uid for uid, pred in predictions.items() if pred["guess"] == dice_result]
+    losers = [uid for uid, pred in predictions.items() if pred["guess"] != dice_result]
+
+    if not winners:
+        await channel.send("❌ Không ai đoán đúng! Tất cả mất điểm.")
+        for uid, pred in predictions.items():
+            old = rankings.get(uid, 0)
+            rankings[uid] = max(0, old - pred["amount"])
+            save_rankings(rankings)
+        return
+
+    total_lost = sum(predictions[uid]["amount"] for uid in losers)
+    win_amount = total_lost // len(winners)
+
+    for uid in winners:
+        old = rankings.get(uid, 0)
+        rankings[uid] = old + win_amount
+        save_rankings(rankings)
+
+    for uid in losers:
+        old = rankings.get(uid, 0)
+        rankings[uid] = max(0, old - predictions[uid]["amount"])
+        save_rankings(rankings)
+
+    result_msg = "📊 **KẾT QUẢ CƯỢC**\n"
+    for uid, pred in predictions.items():
+        try:
+            user = await client.fetch_user(int(uid))
+            name = user.display_name
+        except:
+            name = uid
+        status = "✅ THẮNG" if uid in winners else "❌ THUA"
+        new_score = rankings.get(uid, 0)
+        result_msg += f"{name}: {status} | Dự đoán: {pred['guess']} | Cược: {pred['amount']} | Điểm mới: {new_score}\n"
+
+    await channel.send(result_msg)
 
 # ===== MINI GAME 6: ĐIỀN TỪ =====
 async def game_fill_word(channel):
@@ -443,6 +579,124 @@ async def game_solo_duel(channel):
     except asyncio.TimeoutError:
         await channel.send(f"⏰ Hết giờ! Đáp án đúng là: **{correct}**")
 
+# ===== MINI GAME 13: ĐUA XE =====
+async def game_race(channel):
+    player_ids = list(players.keys())
+    if len(player_ids) < 2:
+        await channel.send("❌ Cần ít nhất 2 người để đua xe!")
+        return
+
+    colors = ["🔴 Đỏ", "🔵 Xanh", "🟢 Xanh lá", "🟡 Vàng", "🟣 Tím", "⚫ Đen"]
+    embed = discord.Embed(
+        title="🏎️ ĐUA XE - CƯỢC ĐIỂM",
+        description="📖 **HƯỚNG DẪN**\n"
+                    "1️⃣ Chọn màu xe và nhập số điểm cược.\n"
+                    "2️⃣ Ví dụ: `Đỏ 50` hoặc `Xanh 20`.\n"
+                    "3️⃣ Xe sẽ chạy và về đích – ai chọn đúng màu sẽ thắng!\n"
+                    f"🎨 Các màu: {', '.join(colors)}",
+        color=discord.Color.blue()
+    )
+    await channel.send(embed=embed)
+
+    bets = {}
+    def check(msg):
+        return msg.author.id in [int(uid) for uid in player_ids] and msg.channel == channel
+
+    start_time = time.time()
+    timeout = 30
+    while time.time() - start_time < timeout:
+        try:
+            msg = await client.wait_for('message', timeout=1.0, check=check)
+            parts = msg.content.split()
+            if len(parts) != 2:
+                await msg.author.send("❌ Sai cú pháp! Hãy nhập: `Đỏ 50` hoặc `Xanh 20`")
+                continue
+
+            color = parts[0].lower()
+            try:
+                bet_amount = int(parts[1])
+            except:
+                await msg.author.send("❌ Số điểm cược không hợp lệ!")
+                continue
+
+            if bet_amount < 10:
+                await msg.author.send("❌ Số điểm cược tối thiểu là 10!")
+                continue
+
+            user_id = str(msg.author.id)
+            current_score = rankings.get(user_id, 0)
+            if bet_amount > current_score:
+                await msg.author.send(f"❌ Bạn chỉ có **{current_score}** điểm!")
+                continue
+
+            color_map = {"đỏ": "🔴 Đỏ", "xanh": "🔵 Xanh", "xanh lá": "🟢 Xanh lá", "vàng": "🟡 Vàng", "tím": "🟣 Tím", "đen": "⚫ Đen"}
+            if color not in color_map:
+                await msg.author.send("❌ Màu không hợp lệ! Chọn: Đỏ, Xanh, Xanh lá, Vàng, Tím, Đen")
+                continue
+
+            bets[user_id] = {"color": color_map[color], "amount": bet_amount}
+            await msg.author.send(f"✅ Bạn đã cược **{bet_amount}** điểm vào xe màu **{color_map[color]}**!")
+
+        except asyncio.TimeoutError:
+            continue
+
+    if not bets:
+        await channel.send("❌ Không có ai đặt cược! Hủy game.")
+        return
+
+    # Animation đua xe
+    race_msg = await channel.send("🏎️ **ĐUA XE BẮT ĐẦU!**")
+    winner_color = random.choice(colors)
+    
+    for i in range(5, 0, -1):
+        animation = ""
+        for color in colors:
+            if color == winner_color:
+                animation += f"{color} 🚀\n"
+            else:
+                animation += f"{color} 🏁\n"
+        await race_msg.edit(content=f"🏎️ **ĐUA XE**\n{animation}\n⏳ Còn **{i}** giây...")
+        await asyncio.sleep(1)
+
+    await channel.send(f"🏆 **Xe màu {winner_color} về đích!**")
+
+    winners = [uid for uid, bet in bets.items() if bet["color"] == winner_color]
+    losers = [uid for uid, bet in bets.items() if bet["color"] != winner_color]
+
+    if not winners:
+        await channel.send("❌ Không ai thắng! Tất cả mất điểm.")
+        for uid, bet in bets.items():
+            old = rankings.get(uid, 0)
+            rankings[uid] = max(0, old - bet["amount"])
+            save_rankings(rankings)
+        return
+
+    total_lost = sum(bets[uid]["amount"] for uid in losers)
+    win_amount = total_lost // len(winners)
+
+    for uid in winners:
+        old = rankings.get(uid, 0)
+        rankings[uid] = old + win_amount
+        save_rankings(rankings)
+
+    for uid in losers:
+        old = rankings.get(uid, 0)
+        rankings[uid] = max(0, old - bets[uid]["amount"])
+        save_rankings(rankings)
+
+    result_msg = "📊 **KẾT QUẢ CƯỢC**\n"
+    for uid, bet in bets.items():
+        try:
+            user = await client.fetch_user(int(uid))
+            name = user.display_name
+        except:
+            name = uid
+        status = "✅ THẮNG" if uid in winners else "❌ THUA"
+        new_score = rankings.get(uid, 0)
+        result_msg += f"{name}: {status} | Màu: {bet['color']} | Cược: {bet['amount']} | Điểm mới: {new_score}\n"
+
+    await channel.send(result_msg)
+
 # ===== CỘNG ĐIỂM =====
 def add_points(user_id, points):
     user_id = str(user_id)
@@ -493,13 +747,11 @@ async def on_interaction(interaction: discord.Interaction):
 
     custom_id = interaction.data.get("custom_id")
     
-    # THAM GIA
     if custom_id == "join_start":
         user_id = str(interaction.user.id)
         if user_id not in players:
             players[user_id] = interaction.user.name
             save_players(players)
-            # Cập nhật số người tham gia
             embed = interaction.message.embeds[0]
             embed.description = f"⏳ Nhấn **Tham gia ngay!** để vào game.\n👥 Số người đã tham gia: **{len(players)}**\n▶️ Nhấn **Bắt đầu game!** để bắt đầu vote."
             await interaction.response.edit_message(embed=embed, view=interaction.message.components[0])
@@ -507,7 +759,6 @@ async def on_interaction(interaction: discord.Interaction):
         else:
             await interaction.response.send_message("❌ Bạn đã tham gia rồi!", ephemeral=True)
 
-    # BẮT ĐẦU GAME
     elif custom_id == "start_game":
         if len(players) < 1:
             await interaction.response.send_message("❌ Cần ít nhất 1 người tham gia để bắt đầu!", ephemeral=True)
@@ -519,7 +770,6 @@ async def on_interaction(interaction: discord.Interaction):
             await asyncio.sleep(1)
         await interaction.edit_original_response(content="✅ Bắt đầu vote!")
 
-        # Hiển thị bảng vote
         embed_vote = discord.Embed(
             title="🎮 **CHỌN MINI GAME** 🎮",
             description="Bấm nút bên dưới để bỏ phiếu chọn game.\n"
@@ -531,7 +781,7 @@ async def on_interaction(interaction: discord.Interaction):
             embed_vote.add_field(name=f"{game['emoji']} {game['name']}", value=game['desc'], inline=False)
 
         view = VoteView(MINI_GAMES)
-        msg = await interaction.followup.send(embed=embed_vote, view=view)
+        await interaction.followup.send(embed=embed_vote, view=view)
         await asyncio.sleep(VOTE_DURATION)
 
         if not view.votes:
@@ -547,7 +797,6 @@ async def on_interaction(interaction: discord.Interaction):
         chosen_id = random.choice(top_games)
         chosen_game = MINI_GAMES[chosen_id]
 
-        # Đếm ngược 10s trước khi kết thúc vote
         for i in range(10, 0, -1):
             await interaction.edit_original_response(content=f"⏳ Kết thúc vote sau {i} giây...")
             await asyncio.sleep(1)
@@ -565,6 +814,14 @@ async def on_interaction(interaction: discord.Interaction):
             await run_team_game(interaction.channel, chosen_id)
         else:
             await run_mini_game(interaction.channel, chosen_id)
+
+    elif custom_id == "ready_tai_xiu":
+        user_id = str(interaction.user.id)
+        if user_id in players:
+            ready_users.add(user_id)
+            await interaction.response.send_message(f"✅ **{interaction.user.mention}** đã sẵn sàng!", ephemeral=False)
+        else:
+            await interaction.response.send_message("❌ Bạn chưa tham gia game!", ephemeral=True)
 
 # ===== LỆNH RANDOM =====
 @tree.command(name="random", description="🎡 Chọn ngẫu nhiên 1 người đã tham gia và đang online")
@@ -616,8 +873,9 @@ async def slash_rankings(interaction: discord.Interaction):
         except:
             name = user_id
         rank_name = get_rank(score)
+        rank_emoji = get_rank_emoji(rank_name)
         medal = medals[idx-1] if idx <= 3 else f"#{idx}"
-        leaderboard += f"{medal} **{name}** – ⭐ {score} | {get_rank_emoji(rank_name)}{rank_name}\n"
+        leaderboard += f"{medal} **{name}** – ⭐ {score} | {rank_emoji} {rank_name}\n"
 
     embed = discord.Embed(
         title="🏆 **BẢNG XẾP HẠNG TOÀN SERVER** 🏆",
@@ -629,9 +887,31 @@ async def slash_rankings(interaction: discord.Interaction):
         value=f"⭐ {rankings.get(str(interaction.user.id), 0)} điểm",
         inline=False
     )
+
+    user_score = rankings.get(str(interaction.user.id), 0)
+    next_rank = None
+    for threshold, name, emoji in RANK_THRESHOLDS:
+        if user_score < threshold:
+            next_rank = {"name": name, "emoji": emoji, "threshold": threshold}
+            break
+
+    if next_rank:
+        embed.add_field(
+            name="🎯 **MỤC TIÊU TIẾP THEO**",
+            value=f"Cần **{next_rank['threshold'] - user_score}** điểm nữa để đạt rank **{next_rank['emoji']} {next_rank['name']}**!",
+            inline=False
+        )
+    else:
+        embed.add_field(
+            name="🏆 **THÀNH TỰU**",
+            value="Bạn đã đạt rank cao nhất! **Siêu Tỉ Phú** 🏆",
+            inline=False
+        )
+
     embed.set_footer(text="🏅 Trả lời /random để nhận điểm! – by Bananavuive")
     await interaction.response.send_message(embed=embed)
 
+# ===== LỆNH DIEM =====
 @tree.command(name="diem", description="📊 Xem số điểm hiện tại của bạn")
 async def slash_diem(interaction: discord.Interaction):
     user_id = str(interaction.user.id)
