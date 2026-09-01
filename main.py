@@ -38,7 +38,7 @@ def save_players(data):
 
 players = load_players()
 
-# ===== HỆ THỐNG RANK (DÙNG EMOJI + MÀU, KHÔNG CẦN ẢNH) =====
+# ===== HỆ THỐNG RANK (CHỈ DÙNG EMOJI + MÀU) =====
 RANK_COLORS = {
     "Đồng": 0xB87333,
     "Bạc": 0xC0C0C0,
@@ -53,6 +53,22 @@ RANK_COLORS = {
     "Triệu Phú": 0x1E90FF,
     "Tỉ Phú": 0x8B0000,
     "Siêu Tỉ Phú": 0xFF0000
+}
+
+RANK_PERKS = {
+    "Đồng": "Không có đặc quyền",
+    "Bạc": "Không có đặc quyền",
+    "Vàng": "Không có đặc quyền",
+    "Bạch Kim": "Không có đặc quyền",
+    "Kim Cương": "Không có đặc quyền",
+    "Tinh Anh": "Không có đặc quyền",
+    "Cao Thủ": "Màu tên riêng trong bảng xếp hạng",
+    "Đại Pro": "Màu tên riêng + biểu tượng đặc biệt",
+    "Vua": "Màu tên riêng + biểu tượng đặc biệt + được tag khi lên rank",
+    "Người Giàu": "Biểu tượng 💰 trước tên",
+    "Triệu Phú": "Biểu tượng 💎 trước tên",
+    "Tỉ Phú": "Biểu tượng 👑 trước tên",
+    "Siêu Tỉ Phú": "Biểu tượng 🏆 trước tên + màu vàng rực"
 }
 
 RANK_THRESHOLDS = [
@@ -86,6 +102,9 @@ def get_rank_emoji(rank):
 
 def get_rank_color(rank):
     return RANK_COLORS.get(rank, 0x5865F2)
+
+def get_rank_perk(rank):
+    return RANK_PERKS.get(rank, "Không có đặc quyền")
 
 # ===== LƯU TRỮ ĐIỂM =====
 def load_rankings():
@@ -855,12 +874,18 @@ async def slash_random(interaction: discord.Interaction):
     await interaction.response.send_message(embed=embed, view=view)
 
 # ===== LỆNH RANKINGS =====
-@tree.command(name="rankings", description="🏆 Bảng xếp hạng toàn server")
+@tree.command(name="rankings", description="🏆 Bảng xếp hạng toàn server + tham khảo rank")
 async def slash_rankings(interaction: discord.Interaction):
+    # Hiển thị bảng tham khảo rank
+    rank_ref = "📊 **BẢNG THAM KHẢO RANK**\n"
+    for threshold, name, emoji in RANK_THRESHOLDS:
+        perk = get_rank_perk(name)
+        rank_ref += f"{emoji} **{name}** – {threshold} điểm – *{perk}*\n"
+
     if not rankings:
         embed = discord.Embed(
             title="🏆 **BẢNG XẾP HẠNG** 🏆",
-            description="❌ **Chưa có ai ghi điểm!**\nHãy tham gia trò chơi và trở thành người đứng đầu!",
+            description=f"❌ **Chưa có ai ghi điểm!**\n\n{rank_ref}",
             color=discord.Color.dark_gold()
         )
         embed.set_footer(text="💪 Hãy trả lời câu hỏi để tích điểm! – by Bananavuive")
@@ -911,6 +936,12 @@ async def slash_rankings(interaction: discord.Interaction):
             value="Bạn đã đạt rank cao nhất! **Siêu Tỉ Phú** 🏆",
             inline=False
         )
+
+    embed.add_field(
+        name="📋 **THAM KHẢO RANK**",
+        value=rank_ref,
+        inline=False
+    )
 
     embed.set_footer(text="🏅 Trả lời /random để nhận điểm! – by Bananavuive")
     await interaction.response.send_message(embed=embed)
