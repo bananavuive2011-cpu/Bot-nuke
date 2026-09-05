@@ -107,28 +107,43 @@ def get_rank_emoji(rank):
 def get_rank_color(rank):
     return RANK_COLORS.get(rank, 0x5865F2)
 
-# ===== LƯU TRỮ ĐIỂM =====
-def load_rankings():
-    if os.path.exists(DATA_FILE):
-        with open(DATA_FILE, "r", encoding="utf-8") as f:
+# ===== LƯU TRỮ ĐIỂM (SỬA LỖI KHI VÀO SERVER MỚI) =====
+# Dùng dict lưu theo guild_id để phân biệt server
+rankings_data = {}
+
+def load_rankings(guild_id):
+    """Load điểm của 1 server cụ thể"""
+    filename = f"rankings_{guild_id}.json"
+    if os.path.exists(filename):
+        with open(filename, "r", encoding="utf-8") as f:
             return json.load(f)
     return {}
 
-def save_rankings(data):
-    with open(DATA_FILE, "w", encoding="utf-8") as f:
+def save_rankings(guild_id, data):
+    """Lưu điểm của 1 server cụ thể"""
+    filename = f"rankings_{guild_id}.json"
+    with open(filename, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=4)
 
-rankings = load_rankings()
+def get_rankings(guild_id):
+    """Lấy dict điểm của server, tự động tạo nếu chưa có"""
+    if guild_id not in rankings_data:
+        rankings_data[guild_id] = load_rankings(guild_id)
+    return rankings_data[guild_id]
 
-# ===== CỘNG ĐIỂM =====
-def add_points(user_id, points):
+def add_points(guild_id, user_id, points):
+    """Cộng điểm cho user trong server cụ thể"""
     user_id = str(user_id)
-    try:
-        rankings[user_id] = rankings.get(user_id, 0) + points
-        save_rankings(rankings)
-        print(f"[+] Added {points} to {user_id}, new score: {rankings[user_id]}")
-    except Exception as e:
-        print(f"[!] Lỗi add_points: {e}")
+    rankings = get_rankings(guild_id)
+    rankings[user_id] = rankings.get(user_id, 0) + points
+    save_rankings(guild_id, rankings)
+    print(f"[+] Server {guild_id}: Added {points} to {user_id}, new score: {rankings[user_id]}")
+    return rankings[user_id]
+
+def get_points(guild_id, user_id):
+    """Lấy điểm của user trong server cụ thể"""
+    rankings = get_rankings(guild_id)
+    return rankings.get(str(user_id), 0)
 
 # ===== DANH SÁCH MINI GAME =====
 MINI_GAMES = {
@@ -170,9 +185,9 @@ GAME_INSTRUCTIONS = {
 class WerewolfGame:
     def __init__(self, channel, player_ids):
         self.channel = channel
-        self.player_ids = player_ids  # list of user ids (str)
+        self.player_ids = player_ids
         self.alive = set(player_ids)
-        self.roles = {}  # user_id -> role
+        self.roles = {}
         self.role_emoji = {
             "Dân làng": "👤",
             "Ma sói": "🐺",
@@ -187,20 +202,18 @@ class WerewolfGame:
             "guardian_target": None,
             "guardian_last": None
         }
-        self.night_actions = {}  # dict user_id -> action
+        self.night_actions = {}
         self.day_count = 0
         self.game_over = False
         self.winner = None
-        self.votes = {}  # user_id -> voted_user_id
-        self.deaths = []  # list of user_ids died
-        self.saved = None  # user_id được cứu
+        self.votes = {}
+        self.deaths = []
+        self.saved = None
 
     def assign_roles(self):
         num = len(self.player_ids)
         roles = []
-        # Tính số sói
         num_wolves = max(1, num // 3)
-        # Vai đặc biệt
         roles.extend(["Ma sói"] * num_wolves)
         remaining = num - num_wolves
         
@@ -217,7 +230,6 @@ class WerewolfGame:
             roles.append("Thợ săn")
             remaining -= 1
         
-        # Dân làng còn lại
         roles.extend(["Dân làng"] * remaining)
         random.shuffle(roles)
         
@@ -264,19 +276,16 @@ class WerewolfGame:
 
 # ===== HÀM CHẠY GAME MA SÓI =====
 async def run_werewolf(channel):
-    global players, rankings
+    global players
     
-    # Kiểm tra số người
     if len(players) < 6:
         await channel.send("❌ **Cần ít nhất 6 người để chơi Ma sói!** Hiện có {} người.".format(len(players)))
         return
     
-    # Tạo game instance
     player_ids = list(players.keys())
     game = WerewolfGame(channel, player_ids)
     game.assign_roles()
     
-    # Gửi DM vai trò cho từng người
     await channel.send("🐺 **MA SÓI BẮT ĐẦU!**\nBot đang phân vai... Mỗi người sẽ nhận được DM riêng.")
     
     for uid in player_ids:
@@ -308,32 +317,25 @@ async def run_werewolf(channel):
         except:
             pass
     
-    # Thông báo công khai
     await channel.send("✅ **Đã gửi vai trò cho tất cả người chơi qua DM.**\nBắt đầu game sau 3 giây...")
     await asyncio.sleep(3)
     
-    # Vòng lặp game
     while not game.game_over:
-        # === PHA ĐÊM ===
         await channel.send("🌙 **ĐÊM XUỐNG...**\nMọi người đừng nói chuyện. Các vai đặc biệt hãy kiểm tra DM.")
         
-        # Reset actions
         game.night_actions = {}
         game.votes = {}
         game.deaths = []
         game.saved = None
         
-        # 1. Sói chọn nạn nhân
         wolves = game.get_wolf_ids()
         wolf_target = None
         if wolves:
-            # Gửi DM cho từng sói để vote chọn mục tiêu
             wolf_votes = {}
             for wid in wolves:
                 try:
                     user = await channel.guild.fetch_member(int(wid))
                     if user:
-                        # Tạo view chọn
                         class WolfView(discord.ui.View):
                             def __init__(self, alive_players, game, guild):
                                 super().__init__(timeout=20)
@@ -363,7 +365,6 @@ async def run_werewolf(channel):
                 except:
                     pass
             
-            # Đếm phiếu sói
             if wolf_votes:
                 vote_count = {}
                 for target in wolf_votes.values():
@@ -371,7 +372,6 @@ async def run_werewolf(channel):
                 if vote_count:
                     wolf_target = max(vote_count, key=vote_count.get)
         
-        # 2. Tiên tri soi
         seers = [uid for uid in game.alive if game.roles[uid] == "Tiên tri"]
         seer_target = None
         if seers:
@@ -411,7 +411,6 @@ async def run_werewolf(channel):
             except:
                 pass
         
-        # 3. Bảo vệ
         guardians = [uid for uid in game.alive if game.roles[uid] == "Bảo vệ"]
         guardian_target = None
         if guardians:
@@ -450,16 +449,12 @@ async def run_werewolf(channel):
             except:
                 pass
         
-        # Xử lý kết quả đêm
-        # Xác định ai chết
         if wolf_target and wolf_target in game.alive:
-            # Kiểm tra bảo vệ
             if guardian_target == wolf_target:
                 await channel.send("🛡️ **Bảo vệ đã cứu 1 người!**")
             else:
                 game.deaths.append(wolf_target)
         
-        # Phù thủy cứu
         witches = [uid for uid in game.alive if game.roles[uid] == "Phù thủy"]
         if witches and game.deaths and not game.used_abilities["witch_save"]:
             witch = witches[0]
@@ -497,7 +492,6 @@ async def run_werewolf(channel):
             except:
                 pass
         
-        # Phù thủy giết
         if witches and not game.used_abilities["witch_kill"]:
             witch = witches[0]
             try:
@@ -510,7 +504,6 @@ async def run_werewolf(channel):
                             self.game = game
                             self.guild = guild
                             self.chosen = None
-                            # Nút hủy
                             btn_cancel = discord.ui.Button(label="❌ Hủy", style=discord.ButtonStyle.secondary, custom_id="kill_cancel")
                             btn_cancel.callback = self.btn_callback
                             self.add_item(btn_cancel)
@@ -541,7 +534,6 @@ async def run_werewolf(channel):
             except:
                 pass
         
-        # Công bố kết quả đêm
         if game.deaths:
             death_names = [game.get_player_name(uid, channel.guild) for uid in game.deaths]
             await channel.send(f"💀 **SÁNG HÔM SAU**\nCó người đã chết: **{', '.join(death_names)}**")
@@ -551,25 +543,20 @@ async def run_werewolf(channel):
         else:
             await channel.send("🌅 **SÁNG HÔM SAU**\nKhông có ai chết đêm nay!")
         
-        # Kiểm tra game over
         if game.is_game_over():
             break
         
-        # === PHA NGÀY ===
         game.day_count += 1
         await channel.send(f"☀️ **NGÀY {game.day_count}**\nMọi người thảo luận và bỏ phiếu treo cổ.")
         
-        # Thảo luận 30 giây
         await channel.send("💬 **Thảo luận trong 30 giây...**")
         await asyncio.sleep(30)
         
-        # Vote treo cổ
         alive_list = list(game.alive)
         if len(alive_list) < 2:
             await channel.send("❌ Không đủ người để vote!")
             break
         
-        # Tạo view vote
         class HangView(discord.ui.View):
             def __init__(self, alive_players, game, guild):
                 super().__init__(timeout=30)
@@ -601,7 +588,6 @@ async def run_werewolf(channel):
         await channel.send("🗳️ **Bỏ phiếu treo cổ (30 giây):**", view=hang_view)
         await hang_view.wait()
         
-        # Đếm phiếu
         if hang_view.votes:
             vote_count = {}
             for target in hang_view.votes.values():
@@ -615,7 +601,6 @@ async def run_werewolf(channel):
                     if hanged in game.alive:
                         game.alive.remove(hanged)
                         
-                        # Thợ săn bắn
                         if game.roles[hanged] == "Thợ săn":
                             hunter = hanged
                             try:
@@ -657,36 +642,34 @@ async def run_werewolf(channel):
         else:
             await channel.send("⏰ **Không có ai bỏ phiếu! Không ai bị treo cổ.**")
         
-        # Kiểm tra game over
         if game.is_game_over():
             break
     
-    # === KẾT THÚC ===
     await channel.send(f"🎉 **GAME KẾT THÚC!**\n🏆 Phe **{game.winner}** chiến thắng!")
     
-    # Cộng điểm
+    # Cộng điểm cho người thắng
+    guild_id = str(channel.guild.id)
     if game.winner == "Dân làng":
         for uid in game.alive:
             if game.roles[uid] != "Ma sói":
-                add_points(uid, 30)
+                new_score = add_points(guild_id, uid, 30)
                 try:
                     user = await channel.guild.fetch_member(int(uid))
                     if user:
-                        await user.send(f"🎉 Bạn thắng với phe Dân làng! +30 điểm.")
+                        await user.send(f"🎉 Bạn thắng với phe Dân làng! +30 điểm. Tổng: {new_score}")
                 except:
                     pass
     elif game.winner == "Ma sói":
         for uid in game.alive:
             if game.roles[uid] == "Ma sói":
-                add_points(uid, 50)
+                new_score = add_points(guild_id, uid, 50)
                 try:
                     user = await channel.guild.fetch_member(int(uid))
                     if user:
-                        await user.send(f"🎉 Bạn thắng với phe Ma sói! +50 điểm.")
+                        await user.send(f"🎉 Bạn thắng với phe Ma sói! +50 điểm. Tổng: {new_score}")
                 except:
                     pass
     
-    # Reset players
     reset_players()
 
 # ===== VOTE MINI GAME =====
@@ -699,7 +682,7 @@ class VoteView(discord.ui.View):
             btn = discord.ui.Button(label=f"{game['emoji']} {game['name']}", custom_id=f"vote_{game_id}", style=discord.ButtonStyle.secondary)
             btn.callback = self.vote_callback
             self.add_item(btn)
-
+    
     async def vote_callback(self, interaction: discord.Interaction):
         game_id = interaction.data["custom_id"].split("_")[1]
         user_id = str(interaction.user.id)
@@ -708,6 +691,31 @@ class VoteView(discord.ui.View):
             await interaction.response.send_message(f"✅ Bạn đã chọn **{self.games[game_id]['name']}**!", ephemeral=True)
         else:
             await interaction.response.send_message("❌ Bạn đã bỏ phiếu rồi!", ephemeral=True)
+    
+    async def on_timeout(self):
+        self.stop()
+
+# ===== LỚP CONTINUE (TIẾP TỤC SAU GAME) =====
+class ContinueView(discord.ui.View):
+    def __init__(self):
+        super().__init__(timeout=5)
+        self.value = None
+    
+    @discord.ui.button(label="🔄 Tiếp tục chơi (5s)", style=discord.ButtonStyle.success, custom_id="continue_yes")
+    async def continue_yes(self, interaction: discord.Interaction, button: discord.ui.Button):
+        self.value = True
+        self.stop()
+        await interaction.response.send_message("🔄 **Chọn tiếp tục!** Quay lại màn hình vote...", ephemeral=False)
+    
+    @discord.ui.button(label="⏹️ Dừng lại", style=discord.ButtonStyle.danger, custom_id="continue_no")
+    async def continue_no(self, interaction: discord.Interaction, button: discord.ui.Button):
+        self.value = False
+        self.stop()
+        await interaction.response.send_message("⏹️ **Đã dừng chơi!** Cảm ơn bạn đã tham gia!", ephemeral=False)
+    
+    async def on_timeout(self):
+        self.value = False
+        self.stop()
 
 # ===== LỚP START =====
 class StartView(discord.ui.View):
@@ -716,12 +724,13 @@ class StartView(discord.ui.View):
         self.add_item(discord.ui.Button(label="🎮 Tham gia ngay!", style=discord.ButtonStyle.success, custom_id="join_start"))
         self.add_item(discord.ui.Button(label="▶️ Bắt đầu game!", style=discord.ButtonStyle.primary, custom_id="start_game"))
 
-# ===== HÀM CHẠY MINI GAME =====
+# ===== HÀM CHẠY MINI GAME (CÓ TIẾP TỤC) =====
 async def run_mini_game(channel, game_id):
+    global keep_playing
     game = MINI_GAMES[game_id]
-    if game_id in GAME_INSTRUCTIONS:
-        await channel.send(GAME_INSTRUCTIONS[game_id])
+    game_name = game['name']
     
+    # Chạy game
     if game_id == "1":
         await game_guess_number(channel)
     elif game_id == "2":
@@ -750,15 +759,68 @@ async def run_mini_game(channel, game_id):
         await run_werewolf(channel)
     
     reset_players()
+    
+    # ===== BẢNG CHỌN TIẾP TỤC =====
+    embed_continue = discord.Embed(
+        title="🎉 GAME ĐÃ KẾT THÚC! 🎉",
+        description=f"**{game_name}** đã hoàn thành!\n\n👑 Người chiến thắng đã được vinh danh!\n\nBạn muốn chơi tiếp không?",
+        color=discord.Color.gold()
+    )
+    embed_continue.add_field(
+        name="🔄 Tiếp tục",
+        value="Sẽ quay lại màn hình vote để chọn game mới",
+        inline=True
+    )
+    embed_continue.add_field(
+        name="⏹️ Dừng",
+        value="Kết thúc phiên chơi, thoát về kênh",
+        inline=True
+    )
+    
+    view = ContinueView()
+    await channel.send(embed=embed_continue, view=view)
+    
+    # Đợi người chơi chọn
+    await view.wait()
+    
+    if view.value is None:
+        view.value = False
+    
+    if view.value:
+        await channel.send("🔄 **Tiếp tục chơi!** Quay lại màn hình vote sau 3 giây...")
+        await asyncio.sleep(3)
+        keep_playing = True
+    else:
+        await channel.send("⏹️ **Đã dừng chơi!** Cảm ơn các bạn đã tham gia! 🎮")
+        keep_playing = False
 
 # ===== HÀM CHẠY TEAM GAME =====
 async def run_team_game(channel, game_id):
     if game_id == "11":
         await game_team_duel(channel)
     reset_players()
+    
+    # Hiện bảng tiếp tục cho team game
+    embed_continue = discord.Embed(
+        title="🎉 GAME ĐÃ KẾT THÚC! 🎉",
+        description=f"**{MINI_GAMES[game_id]['name']}** đã hoàn thành!\n\n👑 Người chiến thắng đã được vinh danh!\n\nBạn muốn chơi tiếp không?",
+        color=discord.Color.gold()
+    )
+    view = ContinueView()
+    await channel.send(embed=embed_continue, view=view)
+    await view.wait()
+    
+    global keep_playing
+    if view.value is None:
+        view.value = False
+    keep_playing = view.value
+    if keep_playing:
+        await channel.send("🔄 **Tiếp tục chơi!** Quay lại màn hình vote sau 3 giây...")
+        await asyncio.sleep(3)
 
 # ===== MINI GAME 1: ĐOÁN SỐ =====
 async def game_guess_number(channel):
+    guild_id = str(channel.guild.id)
     number = random.randint(1, 100)
     embed = discord.Embed(title="🎯 ĐOÁN SỐ", description="Đoán số từ 1 đến 100 trong 5 lần!", color=discord.Color.blue())
     await channel.send(embed=embed)
@@ -770,7 +832,7 @@ async def game_guess_number(channel):
             guess = int(msg.content)
             if guess == number:
                 await channel.send(f"✅ **{msg.author.mention}** đoán đúng! Số là {number}. +10 điểm")
-                add_points(msg.author.id, 10)
+                add_points(guild_id, msg.author.id, 10)
                 return
             elif guess < number:
                 await channel.send(f"⬆️ Số lớn hơn!")
@@ -783,6 +845,7 @@ async def game_guess_number(channel):
 
 # ===== MINI GAME 2: ĐỐ VUI =====
 async def game_quiz(channel):
+    guild_id = str(channel.guild.id)
     q = random.choice(QUESTIONS)
     embed = discord.Embed(title="🧠 ĐỐ VUI", description=f"**{q['question']}**\n\nChọn đáp án: {', '.join(q['options'])}", color=discord.Color.green())
     await channel.send(embed=embed)
@@ -794,14 +857,16 @@ async def game_quiz(channel):
         correct = q['options'][q['answer']].lower()
         if answer == correct:
             await channel.send(f"✅ **{msg.author.mention}** trả lời đúng! +10 điểm")
-            add_points(msg.author.id, 10)
+            add_points(guild_id, msg.author.id, 10)
         else:
             await channel.send(f"❌ Sai! Đáp án đúng là: **{correct}**")
     except asyncio.TimeoutError:
+        correct = q['options'][q['answer']]
         await channel.send(f"⏰ Hết giờ! Đáp án đúng là: **{correct}**")
 
 # ===== MINI GAME 3: TÍNH NHANH =====
 async def game_math_fast(channel):
+    guild_id = str(channel.guild.id)
     a, b = random.randint(1, 20), random.randint(1, 20)
     op = random.choice(['+', '-', '*'])
     if op == '+': result = a + b
@@ -815,7 +880,7 @@ async def game_math_fast(channel):
         msg = await client.wait_for('message', timeout=5.0, check=check)
         if int(msg.content) == result:
             await channel.send(f"✅ **{msg.author.mention}** trả lời đúng! +10 điểm")
-            add_points(msg.author.id, 10)
+            add_points(guild_id, msg.author.id, 10)
         else:
             await channel.send(f"❌ Sai! Đáp án đúng là: **{result}**")
     except asyncio.TimeoutError:
@@ -823,6 +888,7 @@ async def game_math_fast(channel):
 
 # ===== MINI GAME 4: ĐỎ ĐEN =====
 async def game_red_black(channel):
+    guild_id = str(channel.guild.id)
     colors = ["Đỏ", "Đen"]
     result = random.choice(colors)
     embed = discord.Embed(title="🎲 ĐỎ ĐEN", description="Chọn **Đỏ** hoặc **Đen**. Cược 10 điểm!\nNếu đúng bạn nhận +20 điểm, sai mất 10 điểm.", color=discord.Color.red())
@@ -834,12 +900,11 @@ async def game_red_black(channel):
         bet = msg.content.lower()
         user_id = str(msg.author.id)
         if bet == result.lower():
-            add_points(msg.author.id, 20)
+            add_points(guild_id, msg.author.id, 20)
             await channel.send(f"🎉 **{msg.author.mention}** thắng! Kết quả: {result}. +20 điểm")
         else:
-            old = rankings.get(user_id, 0)
-            rankings[user_id] = max(0, old - 10)
-            save_rankings(rankings)
+            old = get_points(guild_id, user_id)
+            add_points(guild_id, user_id, -10)
             await channel.send(f"💀 **{msg.author.mention}** thua! Kết quả: {result}. -10 điểm")
     except asyncio.TimeoutError:
         await channel.send(f"⏰ Hết giờ!")
@@ -849,6 +914,7 @@ ready_users = set()
 
 async def game_tai_xiu(channel):
     global ready_users
+    guild_id = str(channel.guild.id)
     ready_users = set()
     player_ids = list(players.keys())
     if len(player_ids) < 2:
@@ -914,7 +980,7 @@ async def game_tai_xiu(channel):
                 continue
 
             user_id = str(msg.author.id)
-            current_score = rankings.get(user_id, 0)
+            current_score = get_points(guild_id, user_id)
             if bet_amount > current_score:
                 await msg.author.send(f"❌ Bạn chỉ có **{current_score}** điểm!")
                 continue
@@ -937,23 +1003,17 @@ async def game_tai_xiu(channel):
     if not winners:
         await channel.send("❌ Không ai đoán đúng! Tất cả mất điểm.")
         for uid, pred in predictions.items():
-            old = rankings.get(uid, 0)
-            rankings[uid] = max(0, old - pred["amount"])
-            save_rankings(rankings)
+            add_points(guild_id, uid, -pred["amount"])
         return
 
     total_lost = sum(predictions[uid]["amount"] for uid in losers)
     win_amount = total_lost // len(winners)
 
     for uid in winners:
-        old = rankings.get(uid, 0)
-        rankings[uid] = old + win_amount
-        save_rankings(rankings)
+        add_points(guild_id, uid, win_amount)
 
     for uid in losers:
-        old = rankings.get(uid, 0)
-        rankings[uid] = max(0, old - predictions[uid]["amount"])
-        save_rankings(rankings)
+        add_points(guild_id, uid, -predictions[uid]["amount"])
 
     result_msg = "📊 **KẾT QUẢ CƯỢC**\n"
     for uid, pred in predictions.items():
@@ -963,13 +1023,14 @@ async def game_tai_xiu(channel):
         except:
             name = uid
         status = "✅ THẮNG" if uid in winners else "❌ THUA"
-        new_score = rankings.get(uid, 0)
+        new_score = get_points(guild_id, uid)
         result_msg += f"{name}: {status} | Dự đoán: {pred['guess']} | Cược: {pred['amount']} | Điểm mới: {new_score}\n"
 
     await channel.send(result_msg)
 
 # ===== MINI GAME 6: ĐIỀN TỪ =====
 async def game_fill_word(channel):
+    guild_id = str(channel.guild.id)
     words = ["Minecraft", "Discord", "Python", "Roblox", "Java"]
     word = random.choice(words)
     hidden = word[0] + "_" * (len(word)-2) + word[-1]
@@ -981,7 +1042,7 @@ async def game_fill_word(channel):
         msg = await client.wait_for('message', timeout=30.0, check=check)
         if msg.content.lower() == word.lower():
             await channel.send(f"✅ **{msg.author.mention}** điền đúng! +10 điểm")
-            add_points(msg.author.id, 10)
+            add_points(guild_id, msg.author.id, 10)
         else:
             await channel.send(f"❌ Sai! Từ đúng là: **{word}**")
     except asyncio.TimeoutError:
@@ -989,6 +1050,7 @@ async def game_fill_word(channel):
 
 # ===== MINI GAME 7: ĐOÁN BÀI HÁT =====
 async def game_guess_song(channel):
+    guild_id = str(channel.guild.id)
     songs = {"Shape of You": "Một ca khúc của Ed Sheeran",
              "Bohemian Rhapsody": "Ca khúc của Queen",
              "Baby": "Ca khúc của Justin Bieber"}
@@ -1001,7 +1063,7 @@ async def game_guess_song(channel):
         msg = await client.wait_for('message', timeout=30.0, check=check)
         if msg.content.lower() == song.lower():
             await channel.send(f"✅ **{msg.author.mention}** đoán đúng! +10 điểm")
-            add_points(msg.author.id, 10)
+            add_points(guild_id, msg.author.id, 10)
         else:
             await channel.send(f"❌ Sai! Bài hát là: **{song}**")
     except asyncio.TimeoutError:
@@ -1009,6 +1071,7 @@ async def game_guess_song(channel):
 
 # ===== MINI GAME 8: AI NHANH HƠN =====
 async def game_quick_respond(channel):
+    guild_id = str(channel.guild.id)
     embed = discord.Embed(title="🏆 AI NHANH HƠN", description="Ai trả lời **'tôi'** nhanh nhất sẽ thắng!", color=discord.Color.gold())
     await channel.send(embed=embed)
     def check(msg):
@@ -1016,16 +1079,17 @@ async def game_quick_respond(channel):
     try:
         msg = await client.wait_for('message', timeout=5.0, check=check)
         await channel.send(f"🏆 **{msg.author.mention}** thắng! +10 điểm")
-        add_points(msg.author.id, 10)
+        add_points(guild_id, msg.author.id, 10)
     except asyncio.TimeoutError:
         await channel.send("⏰ Không ai trả lời!")
 
 # ===== MINI GAME 9: GIẢI ĐỐ =====
 async def game_puzzle(channel):
+    guild_id = str(channel.guild.id)
     puzzles = ["Cái gì càng lau càng bẩn?", "Quả gì không ăn được?"]
     answer = ["bảng đen", "quả đấm"]
     idx = random.randint(0, len(puzzles)-1)
-    embed = discord.Embed(title="🧩 GIẢI ĐỐ", description=puzzles[idx], color=discord.Color.cyan())
+    embed = discord.Embed(title="🧩 GIẢI ĐỐ", description=puzzles[idx], color=discord.Color.teal())
     await channel.send(embed=embed)
     def check(msg):
         return msg.author != client.user and msg.channel == channel
@@ -1033,7 +1097,7 @@ async def game_puzzle(channel):
         msg = await client.wait_for('message', timeout=30.0, check=check)
         if msg.content.lower() == answer[idx]:
             await channel.send(f"✅ **{msg.author.mention}** giải đố đúng! +10 điểm")
-            add_points(msg.author.id, 10)
+            add_points(guild_id, msg.author.id, 10)
         else:
             await channel.send(f"❌ Sai! Đáp án là: **{answer[idx]}**")
     except asyncio.TimeoutError:
@@ -1041,6 +1105,7 @@ async def game_puzzle(channel):
 
 # ===== MINI GAME 10: THỬ THÁCH =====
 async def game_challenge(channel):
+    guild_id = str(channel.guild.id)
     challenges = ["Hát một bài hát", "Kể một câu chuyện cười", "Nói một câu tiếng Anh"]
     challenge = random.choice(challenges)
     embed = discord.Embed(title="💪 THỬ THÁCH", description=f"Thử thách: **{challenge}**\nHoàn thành để nhận +10 điểm!", color=discord.Color.red())
@@ -1050,12 +1115,13 @@ async def game_challenge(channel):
     try:
         msg = await client.wait_for('message', timeout=60.0, check=check)
         await channel.send(f"🎉 **{msg.author.mention}** hoàn thành thử thách! +10 điểm")
-        add_points(msg.author.id, 10)
+        add_points(guild_id, msg.author.id, 10)
     except asyncio.TimeoutError:
         await channel.send("⏰ Không ai hoàn thành thử thách!")
 
 # ===== MINI GAME 11: ĐẤU TEAM =====
 async def game_team_duel(channel):
+    guild_id = str(channel.guild.id)
     player_ids = list(players.keys())
     if len(player_ids) < 2:
         await channel.send("❌ Cần ít nhất 2 người để chơi team!")
@@ -1094,18 +1160,20 @@ async def game_team_duel(channel):
             if str(msg.author.id) in team1:
                 await channel.send(f"🎉 **Đội 1** trả lời đúng! +10 điểm cho toàn đội!")
                 for uid in team1:
-                    add_points(uid, 10)
+                    add_points(guild_id, uid, 10)
             else:
                 await channel.send(f"🎉 **Đội 2** trả lời đúng! +10 điểm cho toàn đội!")
                 for uid in team2:
-                    add_points(uid, 10)
+                    add_points(guild_id, uid, 10)
         else:
             await channel.send(f"❌ Sai! Đáp án đúng là: **{correct}**")
     except asyncio.TimeoutError:
+        correct = q['options'][q['answer']]
         await channel.send(f"⏰ Hết giờ! Đáp án đúng là: **{correct}**")
 
 # ===== MINI GAME 12: SOLO ĐẤU =====
 async def game_solo_duel(channel):
+    guild_id = str(channel.guild.id)
     player_ids = list(players.keys())
     if len(player_ids) < 2:
         await channel.send("❌ Cần ít nhất 2 người để solo đấu!")
@@ -1136,14 +1204,16 @@ async def game_solo_duel(channel):
         correct = q['options'][q['answer']].lower()
         if answer == correct:
             await channel.send(f"🎉 **{msg.author.mention}** thắng! +15 điểm")
-            add_points(msg.author.id, 15)
+            add_points(guild_id, msg.author.id, 15)
         else:
             await channel.send(f"❌ Sai! Đáp án đúng là: **{correct}**")
     except asyncio.TimeoutError:
+        correct = q['options'][q['answer']]
         await channel.send(f"⏰ Hết giờ! Đáp án đúng là: **{correct}**")
 
 # ===== MINI GAME 13: ĐUA XE =====
 async def game_race(channel):
+    guild_id = str(channel.guild.id)
     player_ids = list(players.keys())
     if len(player_ids) < 2:
         await channel.send("❌ Cần ít nhất 2 người để đua xe!")
@@ -1188,7 +1258,7 @@ async def game_race(channel):
                 continue
 
             user_id = str(msg.author.id)
-            current_score = rankings.get(user_id, 0)
+            current_score = get_points(guild_id, user_id)
             if bet_amount > current_score:
                 await msg.author.send(f"❌ Bạn chỉ có **{current_score}** điểm!")
                 continue
@@ -1229,23 +1299,17 @@ async def game_race(channel):
     if not winners:
         await channel.send("❌ Không ai thắng! Tất cả mất điểm.")
         for uid, bet in bets.items():
-            old = rankings.get(uid, 0)
-            rankings[uid] = max(0, old - bet["amount"])
-            save_rankings(rankings)
+            add_points(guild_id, uid, -bet["amount"])
         return
 
     total_lost = sum(bets[uid]["amount"] for uid in losers)
     win_amount = total_lost // len(winners)
 
     for uid in winners:
-        old = rankings.get(uid, 0)
-        rankings[uid] = old + win_amount
-        save_rankings(rankings)
+        add_points(guild_id, uid, win_amount)
 
     for uid in losers:
-        old = rankings.get(uid, 0)
-        rankings[uid] = max(0, old - bets[uid]["amount"])
-        save_rankings(rankings)
+        add_points(guild_id, uid, -bets[uid]["amount"])
 
     result_msg = "📊 **KẾT QUẢ CƯỢC**\n"
     for uid, bet in bets.items():
@@ -1255,7 +1319,7 @@ async def game_race(channel):
         except:
             name = uid
         status = "✅ THẮNG" if uid in winners else "❌ THUA"
-        new_score = rankings.get(uid, 0)
+        new_score = get_points(guild_id, uid)
         result_msg += f"{name}: {status} | Màu: {bet['color']} | Cược: {bet['amount']} | Điểm mới: {new_score}\n"
 
     await channel.send(result_msg)
@@ -1299,31 +1363,58 @@ intents = discord.Intents.all()
 client = discord.Client(intents=intents)
 tree = app_commands.CommandTree(client)
 
+# ===== BIẾN ĐIỀU KHIỂN VÒNG LẶP =====
+keep_playing = True
+
 # ===== LỆNH START =====
 @tree.command(name="start", description="🎮 Mở sảnh game – tham gia và bắt đầu")
 async def slash_start(interaction: discord.Interaction):
+    global keep_playing
     if not interaction.guild:
         await interaction.response.send_message("❌ Lệnh này chỉ dùng trong server!", ephemeral=True)
         return
+    
+    permissions = interaction.channel.permissions_for(interaction.guild.me)
+    if not permissions.send_messages:
+        await interaction.response.send_message("❌ Bot thiếu quyền gửi tin nhắn trong kênh này!", ephemeral=True)
+        return
 
-    reset_players()
-
-    player_list = "\n".join([f"👤 {name}" for name in players.values()]) if players else "Chưa có ai tham gia"
-    embed = discord.Embed(
-        title="🎮 **SẢNH GAME - BANANAVUIVE** 🎮",
-        description=f"⏳ Nhấn **Tham gia ngay!** để vào game.\n"
-                    f"👥 Số người đã tham gia: **{len(players)}**\n"
-                    f"📋 **Danh sách:**\n{player_list}\n"
-                    "▶️ Nhấn **Bắt đầu game!** để bắt đầu vote.",
-        color=discord.Color.blue()
-    )
-    view = StartView()
-    await interaction.response.send_message(embed=embed, view=view)
+    await interaction.response.defer()
+    
+    keep_playing = True
+    
+    while keep_playing:
+        reset_players()
+        
+        player_list = "\n".join([f"👤 {name}" for name in players.values()]) if players else "Chưa có ai tham gia"
+        embed = discord.Embed(
+            title="🎮 **SẢNH GAME - BANANAVUIVE** 🎮",
+            description=f"⏳ Nhấn **Tham gia ngay!** để vào game.\n"
+                        f"👥 Số người đã tham gia: **{len(players)}**\n"
+                        f"📋 **Danh sách:**\n{player_list}\n"
+                        "▶️ Nhấn **Bắt đầu game!** để bắt đầu vote.",
+            color=discord.Color.blue()
+        )
+        view = StartView()
+        start_msg = await interaction.followup.send(embed=embed, view=view)
+        
+        # Vòng lặp chờ game chạy, keep_playing sẽ được cập nhật trong run_mini_game
+        while keep_playing:
+            await asyncio.sleep(2)
+            # Kiểm tra nếu keep_playing bị thay đổi thì thoát vòng lặp
+            break
+    
+    await interaction.followup.send("👋 **Cảm ơn bạn đã chơi!** Hẹn gặp lại!")
 
 # ===== XỬ LÝ BUTTON =====
 @client.event
 async def on_interaction(interaction: discord.Interaction):
     if interaction.type != discord.InteractionType.component:
+        return
+
+    try:
+        await interaction.response.defer()
+    except discord.errors.NotFound:
         return
 
     custom_id = interaction.data.get("custom_id")
@@ -1340,19 +1431,19 @@ async def on_interaction(interaction: discord.Interaction):
                 player_list = "\n".join([f"👤 {name}" for name in players.values()]) if players else "Chưa có ai tham gia"
                 embed.description = f"⏳ Nhấn **Tham gia ngay!** để vào game.\n👥 Số người đã tham gia: **{len(players)}**\n📋 **Danh sách:**\n{player_list}\n▶️ Nhấn **Bắt đầu game!** để bắt đầu vote."
                 view = StartView()
-                await interaction.response.edit_message(embed=embed, view=view)
+                await interaction.edit_original_response(embed=embed, view=view)
                 await interaction.followup.send(f"✅ **{interaction.user.mention}** đã tham gia!", ephemeral=False)
             else:
-                await interaction.response.send_message("❌ Bạn đã tham gia rồi!", ephemeral=True)
+                await interaction.followup.send("❌ Bạn đã tham gia rồi!", ephemeral=True)
         except Exception as e:
             print(f"[!] Lỗi join_start: {e}")
 
     elif custom_id == "start_game":
         if len(players) < 1:
-            await interaction.response.send_message("❌ Cần ít nhất 1 người tham gia để bắt đầu!", ephemeral=True)
+            await interaction.followup.send("❌ Cần ít nhất 1 người tham gia để bắt đầu!", ephemeral=True)
             return
 
-        await interaction.response.send_message("⏳ Bắt đầu sau 3 giây...", ephemeral=False)
+        await interaction.followup.send("⏳ Bắt đầu sau 3 giây...", ephemeral=False)
         for i in range(3, 0, -1):
             await interaction.edit_original_response(content=f"⏳ Bắt đầu sau {i} giây...")
             await asyncio.sleep(1)
@@ -1369,7 +1460,6 @@ async def on_interaction(interaction: discord.Interaction):
         view = VoteView(MINI_GAMES)
         vote_msg = await interaction.followup.send(embed=embed_vote, view=view)
         
-        # ===== BỘ ĐẾM NGƯỢC REAL-TIME =====
         for remaining in range(VOTE_DURATION, 0, -1):
             embed_vote.description = (
                 f"Bấm nút bên dưới để bỏ phiếu chọn game.\n"
@@ -1409,6 +1499,9 @@ async def on_interaction(interaction: discord.Interaction):
         )
         await interaction.followup.send(embed=embed_result)
 
+        if chosen_id in GAME_INSTRUCTIONS:
+            await interaction.channel.send(GAME_INSTRUCTIONS[chosen_id])
+
         if chosen_game['mode'] == "team":
             await run_team_game(interaction.channel, chosen_id)
         else:
@@ -1419,14 +1512,17 @@ async def on_interaction(interaction: discord.Interaction):
         user_id = str(interaction.user.id)
         if user_id in players:
             ready_users.add(user_id)
-            await interaction.response.send_message(f"✅ **{interaction.user.mention}** đã sẵn sàng!", ephemeral=False)
+            await interaction.followup.send(f"✅ **{interaction.user.mention}** đã sẵn sàng!", ephemeral=False)
         else:
-            await interaction.response.send_message("❌ Bạn chưa tham gia game!", ephemeral=True)
+            await interaction.followup.send("❌ Bạn chưa tham gia game!", ephemeral=True)
 
 # ===== LỆNH RANKINGS =====
 @tree.command(name="rankings", description="🏆 Bảng xếp hạng toàn server")
 async def slash_rankings(interaction: discord.Interaction):
     try:
+        guild_id = str(interaction.guild.id)
+        rankings = get_rankings(guild_id)
+        
         if not rankings:
             embed = discord.Embed(
                 title="🏆 **BẢNG XẾP HẠNG** 🏆",
@@ -1491,6 +1587,8 @@ async def slash_rankings(interaction: discord.Interaction):
 @tree.command(name="diem", description="📊 Xem số điểm hiện tại của bạn")
 async def slash_diem(interaction: discord.Interaction):
     try:
+        guild_id = str(interaction.guild.id)
+        rankings = get_rankings(guild_id)
         user_id = str(interaction.user.id)
         score = rankings.get(user_id, 0)
         rank = get_rank(score)
@@ -1554,13 +1652,13 @@ class QuizView(discord.ui.View):
         selected = int(interaction.data["custom_id"].split("_")[1])
         correct = self.question_data["answer"]
 
+        guild_id = str(interaction.guild.id)
         user_id = str(interaction.user.id)
-        old_score = rankings.get(user_id, 0)
+        old_score = get_points(guild_id, user_id)
         old_rank = get_rank(old_score)
 
         if selected == correct:
-            new_score = old_score + 10
-            add_points(user_id, 10)
+            new_score = add_points(guild_id, user_id, 10)
             
             new_rank = get_rank(new_score)
             rank_up_msg = ""
@@ -1687,6 +1785,8 @@ async def on_ready():
 @client.event
 async def on_guild_join(guild):
     print(f"[*] Added to new server: {guild.name}")
+    # Tạo file rankings riêng cho server mới
+    load_rankings(str(guild.id))
 
 @client.event
 async def on_member_remove(member):
