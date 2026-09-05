@@ -123,9 +123,9 @@ def save_rankings(guild_id, data):
 
 def add_points(guild_id, user_id, points):
     user_id = str(user_id)
-    rankings = get_rankings(guild_id)  # Load trực tiếp từ file
+    rankings = get_rankings(guild_id)
     rankings[user_id] = rankings.get(user_id, 0) + points
-    save_rankings(guild_id, rankings)  # Ghi đè file
+    save_rankings(guild_id, rankings)
     print(f"[+] Server {guild_id}: Added {points} to {user_id}, new score: {rankings[user_id]}")
     return rankings[user_id]
 
@@ -1692,7 +1692,6 @@ async def slash_rankings(interaction: discord.Interaction):
         await interaction.followup.send(embed=embed)
     except Exception as e:
         print(f"[!] Lỗi rankings: {e}")
-        await interaction.followup.send("❌ Đã xảy ra lỗi khi lấy bảng xếp hạng.")
 
 # ===== LỆNH DIEM =====
 @tree.command(name="diem", description="📊 Xem số điểm hiện tại của bạn")
@@ -1763,7 +1762,6 @@ async def slash_diem(interaction: discord.Interaction):
         await interaction.followup.send(embed=embed, ephemeral=True)
     except Exception as e:
         print(f"[!] Lỗi diem: {e}")
-        await interaction.followup.send("❌ Đã xảy ra lỗi khi lấy điểm.")
 
 # ===== MINI GAME - QUIZ =====
 class QuizView(discord.ui.View):
