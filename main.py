@@ -108,9 +108,8 @@ def get_rank_color(rank):
     return RANK_COLORS.get(rank, 0x5865F2)
 
 # ===== LƯU TRỮ ĐIỂM THEO SERVER =====
-rankings_data = {}
-
-def load_rankings(guild_id):
+def get_rankings(guild_id):
+    """Lấy điểm của server, luôn load từ file mới nhất"""
     filename = f"rankings_{guild_id}.json"
     if os.path.exists(filename):
         with open(filename, "r", encoding="utf-8") as f:
@@ -122,16 +121,11 @@ def save_rankings(guild_id, data):
     with open(filename, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=4)
 
-def get_rankings(guild_id):
-    if guild_id not in rankings_data:
-        rankings_data[guild_id] = load_rankings(guild_id)
-    return rankings_data[guild_id]
-
 def add_points(guild_id, user_id, points):
     user_id = str(user_id)
-    rankings = get_rankings(guild_id)
+    rankings = get_rankings(guild_id)  # Load trực tiếp từ file
     rankings[user_id] = rankings.get(user_id, 0) + points
-    save_rankings(guild_id, rankings)
+    save_rankings(guild_id, rankings)  # Ghi đè file
     print(f"[+] Server {guild_id}: Added {points} to {user_id}, new score: {rankings[user_id]}")
     return rankings[user_id]
 
@@ -1619,8 +1613,22 @@ async def on_interaction(interaction: discord.Interaction):
 @tree.command(name="rankings", description="🏆 Bảng xếp hạng toàn server")
 async def slash_rankings(interaction: discord.Interaction):
     try:
+        await interaction.response.defer()
         guild_id = str(interaction.guild.id)
-        rankings = get_rankings(guild_id)
+        
+        filename = f"rankings_{guild_id}.json"
+        if not os.path.exists(filename):
+            embed = discord.Embed(
+                title="🏆 **BẢNG XẾP HẠNG** 🏆",
+                description="❌ **Chưa có ai ghi điểm!**\nHãy tham gia trò chơi và trở thành người đứng đầu!",
+                color=discord.Color.dark_gold()
+            )
+            embed.set_footer(text="💪 Hãy trả lời câu hỏi để tích điểm! – by Bananavuive")
+            await interaction.followup.send(embed=embed)
+            return
+        
+        with open(filename, "r", encoding="utf-8") as f:
+            rankings = json.load(f)
         
         if not rankings:
             embed = discord.Embed(
@@ -1629,7 +1637,7 @@ async def slash_rankings(interaction: discord.Interaction):
                 color=discord.Color.dark_gold()
             )
             embed.set_footer(text="💪 Hãy trả lời câu hỏi để tích điểm! – by Bananavuive")
-            await interaction.response.send_message(embed=embed)
+            await interaction.followup.send(embed=embed)
             return
 
         sorted_rank = sorted(rankings.items(), key=lambda x: x[1], reverse=True)[:10]
@@ -1681,17 +1689,32 @@ async def slash_rankings(interaction: discord.Interaction):
             )
 
         embed.set_footer(text="🏅 Trả lời câu hỏi trong game để nhận điểm! – by Bananavuive")
-        await interaction.response.send_message(embed=embed)
+        await interaction.followup.send(embed=embed)
     except Exception as e:
         print(f"[!] Lỗi rankings: {e}")
-        await interaction.response.send_message("❌ Đã xảy ra lỗi khi lấy bảng xếp hạng.", ephemeral=True)
+        await interaction.followup.send("❌ Đã xảy ra lỗi khi lấy bảng xếp hạng.")
 
 # ===== LỆNH DIEM =====
 @tree.command(name="diem", description="📊 Xem số điểm hiện tại của bạn")
 async def slash_diem(interaction: discord.Interaction):
     try:
+        await interaction.response.defer()
         guild_id = str(interaction.guild.id)
-        rankings = get_rankings(guild_id)
+        
+        filename = f"rankings_{guild_id}.json"
+        if not os.path.exists(filename):
+            embed = discord.Embed(
+                title="👑 **BẢNG ĐIỂM CÁ NHÂN** 👑",
+                description=f"**{interaction.user.mention}**\n\n❌ Chưa có điểm nào!",
+                color=discord.Color.blue()
+            )
+            embed.set_footer(text="📌 Tham gia /start để chơi game nhận điểm! – by Bananavuive")
+            await interaction.followup.send(embed=embed, ephemeral=True)
+            return
+        
+        with open(filename, "r", encoding="utf-8") as f:
+            rankings = json.load(f)
+        
         user_id = str(interaction.user.id)
         score = rankings.get(user_id, 0)
         rank = get_rank(score)
@@ -1714,7 +1737,7 @@ async def slash_diem(interaction: discord.Interaction):
             value=f"**{score}** điểm",
             inline=False
         )
-        # Xếp hạng
+        
         sorted_rank = sorted(rankings.items(), key=lambda x: x[1], reverse=True)
         if user_id in rankings:
             rank_pos = [uid for uid, _ in sorted_rank].index(user_id) + 1
@@ -1737,10 +1760,10 @@ async def slash_diem(interaction: discord.Interaction):
         )
         embed.set_footer(text="📌 Tham gia /start để chơi game nhận điểm! – by Bananavuive")
         
-        await interaction.response.send_message(embed=embed, ephemeral=True)
+        await interaction.followup.send(embed=embed, ephemeral=True)
     except Exception as e:
         print(f"[!] Lỗi diem: {e}")
-        await interaction.response.send_message("❌ Đã xảy ra lỗi khi lấy điểm.", ephemeral=True)
+        await interaction.followup.send("❌ Đã xảy ra lỗi khi lấy điểm.")
 
 # ===== MINI GAME - QUIZ =====
 class QuizView(discord.ui.View):
@@ -1900,7 +1923,6 @@ async def on_ready():
 @client.event
 async def on_guild_join(guild):
     print(f"[*] Added to new server: {guild.name}")
-    load_rankings(str(guild.id))
 
 @client.event
 async def on_member_remove(member):
