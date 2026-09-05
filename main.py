@@ -107,12 +107,10 @@ def get_rank_emoji(rank):
 def get_rank_color(rank):
     return RANK_COLORS.get(rank, 0x5865F2)
 
-# ===== LƯU TRỮ ĐIỂM (SỬA LỖI KHI VÀO SERVER MỚI) =====
-# Dùng dict lưu theo guild_id để phân biệt server
+# ===== LƯU TRỮ ĐIỂM THEO SERVER =====
 rankings_data = {}
 
 def load_rankings(guild_id):
-    """Load điểm của 1 server cụ thể"""
     filename = f"rankings_{guild_id}.json"
     if os.path.exists(filename):
         with open(filename, "r", encoding="utf-8") as f:
@@ -120,19 +118,16 @@ def load_rankings(guild_id):
     return {}
 
 def save_rankings(guild_id, data):
-    """Lưu điểm của 1 server cụ thể"""
     filename = f"rankings_{guild_id}.json"
     with open(filename, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=4)
 
 def get_rankings(guild_id):
-    """Lấy dict điểm của server, tự động tạo nếu chưa có"""
     if guild_id not in rankings_data:
         rankings_data[guild_id] = load_rankings(guild_id)
     return rankings_data[guild_id]
 
 def add_points(guild_id, user_id, points):
-    """Cộng điểm cho user trong server cụ thể"""
     user_id = str(user_id)
     rankings = get_rankings(guild_id)
     rankings[user_id] = rankings.get(user_id, 0) + points
@@ -141,7 +136,6 @@ def add_points(guild_id, user_id, points):
     return rankings[user_id]
 
 def get_points(guild_id, user_id):
-    """Lấy điểm của user trong server cụ thể"""
     rankings = get_rankings(guild_id)
     return rankings.get(str(user_id), 0)
 
@@ -647,7 +641,6 @@ async def run_werewolf(channel):
     
     await channel.send(f"🎉 **GAME KẾT THÚC!**\n🏆 Phe **{game.winner}** chiến thắng!")
     
-    # Cộng điểm cho người thắng
     guild_id = str(channel.guild.id)
     if game.winner == "Dân làng":
         for uid in game.alive:
@@ -700,21 +693,25 @@ class ContinueView(discord.ui.View):
     def __init__(self):
         super().__init__(timeout=5)
         self.value = None
+        self.message = None
     
     @discord.ui.button(label="🔄 Tiếp tục chơi (5s)", style=discord.ButtonStyle.success, custom_id="continue_yes")
     async def continue_yes(self, interaction: discord.Interaction, button: discord.ui.Button):
         self.value = True
         self.stop()
         await interaction.response.send_message("🔄 **Chọn tiếp tục!** Quay lại màn hình vote...", ephemeral=False)
+        self.timeout = 0
     
     @discord.ui.button(label="⏹️ Dừng lại", style=discord.ButtonStyle.danger, custom_id="continue_no")
     async def continue_no(self, interaction: discord.Interaction, button: discord.ui.Button):
         self.value = False
         self.stop()
         await interaction.response.send_message("⏹️ **Đã dừng chơi!** Cảm ơn bạn đã tham gia!", ephemeral=False)
+        self.timeout = 0
     
     async def on_timeout(self):
-        self.value = False
+        if self.value is None:
+            self.value = False
         self.stop()
 
 # ===== LỚP START =====
@@ -724,13 +721,15 @@ class StartView(discord.ui.View):
         self.add_item(discord.ui.Button(label="🎮 Tham gia ngay!", style=discord.ButtonStyle.success, custom_id="join_start"))
         self.add_item(discord.ui.Button(label="▶️ Bắt đầu game!", style=discord.ButtonStyle.primary, custom_id="start_game"))
 
-# ===== HÀM CHẠY MINI GAME (CÓ TIẾP TỤC) =====
+# ===== BIẾN ĐIỀU KHIỂN VÒNG LẶP =====
+keep_playing = True
+
+# ===== HÀM CHẠY MINI GAME =====
 async def run_mini_game(channel, game_id):
     global keep_playing
     game = MINI_GAMES[game_id]
     game_name = game['name']
     
-    # Chạy game
     if game_id == "1":
         await game_guess_number(channel)
     elif game_id == "2":
@@ -760,7 +759,6 @@ async def run_mini_game(channel, game_id):
     
     reset_players()
     
-    # ===== BẢNG CHỌN TIẾP TỤC =====
     embed_continue = discord.Embed(
         title="🎉 GAME ĐÃ KẾT THÚC! 🎉",
         description=f"**{game_name}** đã hoàn thành!\n\n👑 Người chiến thắng đã được vinh danh!\n\nBạn muốn chơi tiếp không?",
@@ -780,7 +778,6 @@ async def run_mini_game(channel, game_id):
     view = ContinueView()
     await channel.send(embed=embed_continue, view=view)
     
-    # Đợi người chơi chọn
     await view.wait()
     
     if view.value is None:
@@ -796,11 +793,11 @@ async def run_mini_game(channel, game_id):
 
 # ===== HÀM CHẠY TEAM GAME =====
 async def run_team_game(channel, game_id):
+    global keep_playing
     if game_id == "11":
         await game_team_duel(channel)
     reset_players()
     
-    # Hiện bảng tiếp tục cho team game
     embed_continue = discord.Embed(
         title="🎉 GAME ĐÃ KẾT THÚC! 🎉",
         description=f"**{MINI_GAMES[game_id]['name']}** đã hoàn thành!\n\n👑 Người chiến thắng đã được vinh danh!\n\nBạn muốn chơi tiếp không?",
@@ -810,13 +807,16 @@ async def run_team_game(channel, game_id):
     await channel.send(embed=embed_continue, view=view)
     await view.wait()
     
-    global keep_playing
     if view.value is None:
         view.value = False
-    keep_playing = view.value
-    if keep_playing:
+    
+    if view.value:
         await channel.send("🔄 **Tiếp tục chơi!** Quay lại màn hình vote sau 3 giây...")
         await asyncio.sleep(3)
+        keep_playing = True
+    else:
+        await channel.send("⏹️ **Đã dừng chơi!** Cảm ơn các bạn đã tham gia! 🎮")
+        keep_playing = False
 
 # ===== MINI GAME 1: ĐOÁN SỐ =====
 async def game_guess_number(channel):
@@ -1363,9 +1363,6 @@ intents = discord.Intents.all()
 client = discord.Client(intents=intents)
 tree = app_commands.CommandTree(client)
 
-# ===== BIẾN ĐIỀU KHIỂN VÒNG LẶP =====
-keep_playing = True
-
 # ===== LỆNH START =====
 @tree.command(name="start", description="🎮 Mở sảnh game – tham gia và bắt đầu")
 async def slash_start(interaction: discord.Interaction):
@@ -1396,12 +1393,13 @@ async def slash_start(interaction: discord.Interaction):
             color=discord.Color.blue()
         )
         view = StartView()
-        start_msg = await interaction.followup.send(embed=embed, view=view)
+        await interaction.followup.send(embed=embed, view=view)
         
-        # Vòng lặp chờ game chạy, keep_playing sẽ được cập nhật trong run_mini_game
+        # Chờ người chơi tương tác và game chạy
+        # Vòng lặp sẽ tiếp tục sau khi game kết thúc và chọn tiếp tục
         while keep_playing:
             await asyncio.sleep(2)
-            # Kiểm tra nếu keep_playing bị thay đổi thì thoát vòng lặp
+            # Kiểm tra nếu không còn người chơi hoặc game đã kết thúc
             break
     
     await interaction.followup.send("👋 **Cảm ơn bạn đã chơi!** Hẹn gặp lại!")
@@ -1515,6 +1513,10 @@ async def on_interaction(interaction: discord.Interaction):
             await interaction.followup.send(f"✅ **{interaction.user.mention}** đã sẵn sàng!", ephemeral=False)
         else:
             await interaction.followup.send("❌ Bạn chưa tham gia game!", ephemeral=True)
+
+    elif custom_id in ["continue_yes", "continue_no"]:
+        # Đã được xử lý trong ContinueView
+        pass
 
 # ===== LỆNH RANKINGS =====
 @tree.command(name="rankings", description="🏆 Bảng xếp hạng toàn server")
@@ -1785,7 +1787,6 @@ async def on_ready():
 @client.event
 async def on_guild_join(guild):
     print(f"[*] Added to new server: {guild.name}")
-    # Tạo file rankings riêng cho server mới
     load_rankings(str(guild.id))
 
 @client.event
