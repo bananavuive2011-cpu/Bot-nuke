@@ -693,21 +693,18 @@ class ContinueView(discord.ui.View):
     def __init__(self):
         super().__init__(timeout=5)
         self.value = None
-        self.message = None
     
     @discord.ui.button(label="🔄 Tiếp tục chơi (5s)", style=discord.ButtonStyle.success, custom_id="continue_yes")
     async def continue_yes(self, interaction: discord.Interaction, button: discord.ui.Button):
         self.value = True
         self.stop()
-        await interaction.response.send_message("🔄 **Chọn tiếp tục!** Quay lại màn hình vote...", ephemeral=False)
-        self.timeout = 0
+        await interaction.response.edit_message(content="🔄 **Chọn tiếp tục!** Quay lại màn hình vote...")
     
     @discord.ui.button(label="⏹️ Dừng lại", style=discord.ButtonStyle.danger, custom_id="continue_no")
     async def continue_no(self, interaction: discord.Interaction, button: discord.ui.Button):
         self.value = False
         self.stop()
-        await interaction.response.send_message("⏹️ **Đã dừng chơi!** Cảm ơn bạn đã tham gia!", ephemeral=False)
-        self.timeout = 0
+        await interaction.response.edit_message(content="⏹️ **Đã dừng chơi!** Cảm ơn bạn đã tham gia!")
     
     async def on_timeout(self):
         if self.value is None:
@@ -724,13 +721,12 @@ class StartView(discord.ui.View):
 # ===== BIẾN ĐIỀU KHIỂN VÒNG LẶP =====
 keep_playing = True
 
-# ===== HÀM CHẠY MINI GAME (ĐÃ SỬA) =====
+# ===== HÀM CHẠY MINI GAME =====
 async def run_mini_game(channel, game_id):
     global keep_playing
     game = MINI_GAMES[game_id]
     game_name = game['name']
     
-    # Chạy game
     if game_id == "1":
         await game_guess_number(channel)
     elif game_id == "2":
@@ -760,7 +756,6 @@ async def run_mini_game(channel, game_id):
     
     reset_players()
     
-    # ===== BẢNG HỎI CHƠI TIẾP =====
     embed_continue = discord.Embed(
         title="🎉 GAME ĐÃ KẾT THÚC! 🎉",
         description=f"**{game_name}** đã hoàn thành!\n\n👑 Người chiến thắng đã được vinh danh!\n\nBạn có muốn chơi tiếp không?",
@@ -779,7 +774,6 @@ async def run_mini_game(channel, game_id):
     
     view = ContinueView()
     await channel.send(embed=embed_continue, view=view)
-    
     await view.wait()
     
     if view.value is None:
@@ -789,7 +783,6 @@ async def run_mini_game(channel, game_id):
         await channel.send("🔄 **Tiếp tục chơi!** Bắt đầu vote sau 3 giây...")
         await asyncio.sleep(3)
         
-        # VOTE LẠI NGAY TẠI ĐÂY
         embed_vote = discord.Embed(
             title="🎮 **CHỌN MINI GAME** 🎮",
             description=f"Bấm nút bên dưới để bỏ phiếu chọn game.\n⏳ Thời gian còn lại: **{VOTE_DURATION}s**\n🏆 Game có số phiếu cao nhất sẽ được chọn!",
@@ -852,7 +845,7 @@ async def run_mini_game(channel, game_id):
         await channel.send("⏹️ **Đã dừng chơi!** Cảm ơn các bạn đã tham gia! 🎮")
         keep_playing = False
 
-# ===== HÀM CHẠY TEAM GAME (ĐÃ SỬA) =====
+# ===== HÀM CHẠY TEAM GAME =====
 async def run_team_game(channel, game_id):
     global keep_playing
     if game_id == "11":
@@ -1022,8 +1015,7 @@ async def game_red_black(channel):
             add_points(guild_id, msg.author.id, 20)
             await channel.send(f"🎉 **{msg.author.mention}** thắng! Kết quả: {result}. +20 điểm")
         else:
-            old = get_points(guild_id, user_id)
-            add_points(guild_id, user_id, -10)
+            add_points(guild_id, msg.author.id, -10)
             await channel.send(f"💀 **{msg.author.mention}** thua! Kết quả: {result}. -10 điểm")
     except asyncio.TimeoutError:
         await channel.send(f"⏰ Hết giờ!")
@@ -1482,7 +1474,7 @@ intents = discord.Intents.all()
 client = discord.Client(intents=intents)
 tree = app_commands.CommandTree(client)
 
-# ===== LỆNH START (ĐÃ SỬA) =====
+# ===== LỆNH START =====
 @tree.command(name="start", description="🎮 Mở sảnh game – tham gia và bắt đầu")
 async def slash_start(interaction: discord.Interaction):
     global keep_playing
@@ -1495,8 +1487,6 @@ async def slash_start(interaction: discord.Interaction):
         await interaction.response.send_message("❌ Bot thiếu quyền gửi tin nhắn trong kênh này!", ephemeral=True)
         return
 
-    await interaction.response.defer()
-    
     keep_playing = True
     
     reset_players()
@@ -1510,7 +1500,7 @@ async def slash_start(interaction: discord.Interaction):
         color=discord.Color.blue()
     )
     view = StartView()
-    await interaction.followup.send(embed=embed, view=view)
+    await interaction.response.send_message(embed=embed, view=view)
     
     while keep_playing:
         await asyncio.sleep(1)
@@ -1523,15 +1513,11 @@ async def on_interaction(interaction: discord.Interaction):
     if interaction.type != discord.InteractionType.component:
         return
 
-    try:
-        await interaction.response.defer()
-    except discord.errors.NotFound:
-        return
-
     custom_id = interaction.data.get("custom_id")
     
     if custom_id == "join_start":
         try:
+            await interaction.response.defer()
             global players
             players = load_players()
             user_id = str(interaction.user.id)
@@ -1550,6 +1536,7 @@ async def on_interaction(interaction: discord.Interaction):
             print(f"[!] Lỗi join_start: {e}")
 
     elif custom_id == "start_game":
+        await interaction.response.defer()
         if len(players) < 1:
             await interaction.followup.send("❌ Cần ít nhất 1 người tham gia để bắt đầu!", ephemeral=True)
             return
@@ -1619,6 +1606,7 @@ async def on_interaction(interaction: discord.Interaction):
             await run_mini_game(interaction.channel, chosen_id)
 
     elif custom_id == "ready_tai_xiu":
+        await interaction.response.defer()
         global ready_users
         user_id = str(interaction.user.id)
         if user_id in players:
@@ -1647,6 +1635,7 @@ async def slash_rankings(interaction: discord.Interaction):
         sorted_rank = sorted(rankings.items(), key=lambda x: x[1], reverse=True)[:10]
         leaderboard = ""
         medals = ["🥇", "🥈", "🥉"]
+        
         for idx, (user_id, score) in enumerate(sorted_rank, 1):
             try:
                 user = await client.fetch_user(int(user_id))
@@ -1663,13 +1652,15 @@ async def slash_rankings(interaction: discord.Interaction):
             description=leaderboard if leaderboard else "❌ Chưa có dữ liệu.",
             color=discord.Color.gold()
         )
+        
+        user_id = str(interaction.user.id)
+        user_score = rankings.get(user_id, 0)
         embed.add_field(
             name="📊 **Điểm của bạn**",
-            value=f"⭐ {rankings.get(str(interaction.user.id), 0)} điểm",
+            value=f"⭐ {user_score} điểm",
             inline=False
         )
 
-        user_score = rankings.get(str(interaction.user.id), 0)
         next_rank = None
         for threshold, name, emoji in RANK_THRESHOLDS:
             if user_score < threshold:
@@ -1693,6 +1684,7 @@ async def slash_rankings(interaction: discord.Interaction):
         await interaction.response.send_message(embed=embed)
     except Exception as e:
         print(f"[!] Lỗi rankings: {e}")
+        await interaction.response.send_message("❌ Đã xảy ra lỗi khi lấy bảng xếp hạng.", ephemeral=True)
 
 # ===== LỆNH DIEM =====
 @tree.command(name="diem", description="📊 Xem số điểm hiện tại của bạn")
@@ -1722,11 +1714,22 @@ async def slash_diem(interaction: discord.Interaction):
             value=f"**{score}** điểm",
             inline=False
         )
-        embed.add_field(
-            name="📈 **XẾP HẠNG**",
-            value=f"#{list(rankings.keys()).index(user_id) + 1 if user_id in rankings else 'Chưa có hạng'}" if rankings else "Chưa có dữ liệu",
-            inline=True
-        )
+        # Xếp hạng
+        sorted_rank = sorted(rankings.items(), key=lambda x: x[1], reverse=True)
+        if user_id in rankings:
+            rank_pos = [uid for uid, _ in sorted_rank].index(user_id) + 1
+            embed.add_field(
+                name="📈 **XẾP HẠNG**",
+                value=f"#{rank_pos}",
+                inline=True
+            )
+        else:
+            embed.add_field(
+                name="📈 **XẾP HẠNG**",
+                value="Chưa có hạng",
+                inline=True
+            )
+        
         embed.add_field(
             name="🏅 **THÀNH TÍCH**",
             value="🔥 Tiếp tục cố gắng!" if score < 50 else "💪 Rất tốt!" if score < 100 else "🌟 Xuất sắc!" if score < 200 else "👑 Huyền thoại!",
@@ -1737,6 +1740,7 @@ async def slash_diem(interaction: discord.Interaction):
         await interaction.response.send_message(embed=embed, ephemeral=True)
     except Exception as e:
         print(f"[!] Lỗi diem: {e}")
+        await interaction.response.send_message("❌ Đã xảy ra lỗi khi lấy điểm.", ephemeral=True)
 
 # ===== MINI GAME - QUIZ =====
 class QuizView(discord.ui.View):
